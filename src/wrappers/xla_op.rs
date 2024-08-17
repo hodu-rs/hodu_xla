@@ -365,9 +365,9 @@ impl XlaOp {
     ///
     /// - `init` argument has a type `T`.
     /// - `cond` is a computation with a single argument of type `T` producing a value of type
-    /// `PRED`.
+    ///   `PRED`.
     /// - `body` is a computation with a single argument of type `T` producing a value of type
-    /// `T`.
+    ///   `T`.
     pub fn while_(cond: XlaComputation, body: XlaComputation, init: Self) -> Result<Self> {
         let op = unsafe { c_lib::op_while(cond.0, body.0, init.op) };
         init.wrap(op)
