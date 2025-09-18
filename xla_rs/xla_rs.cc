@@ -42,8 +42,15 @@ status pjrt_gpu_client_create(pjrt_client *output, double memory_fraction,
                               bool preallocate) {
   xla::GpuAllocatorConfig allocator = {.memory_fraction = memory_fraction,
                                        .preallocate = preallocate};
+  // Updated API for XLA 0.8.0+ - use GpuClientOptions struct
   xla::GpuClientOptions options;
   options.allocator_config = allocator;
+  options.node_id = 0;
+  options.num_nodes = 1;
+  options.allowed_devices = std::nullopt;
+  options.platform_name = std::nullopt;
+  options.should_stage_host_to_device_transfers = true;
+
   ASSIGN_OR_RETURN_STATUS(client, xla::GetStreamExecutorGpuClient(options));
   *output = new std::shared_ptr(std::move(client));
   return nullptr;

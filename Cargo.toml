@@ -11,19 +11,12 @@ license = "MIT/Apache-2.0"
 readme = "README.md"
 
 [dependencies]
-thiserror = "1"
+thiserror = "2.0.16"
 libc = "0.2"
-num-traits = "0.2"
-num-derive = "0.3"
-zip = "0.6.4"
+num-traits = "0.2.19"
+num-derive = "0.4.2"
+zip = "5.1.1"
 
 [build-dependencies]
-bindgen = "0.64"
-cc = "1.0"
-
-[dev-dependencies]
-anyhow = "1.0"
-clap = { version = "4.2.4", features = ["derive"] }
-fancy-regex = "0.11.0"
-rand = "0.8.5"
-serde_json = "1.0.96"
+bindgen = "0.72.1"
+cc = "1.2.37"

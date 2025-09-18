@@ -35,6 +35,10 @@ fn make_shared_lib<P: AsRef<Path>>(os: OS, xla_dir: P) {
                 .include(xla_dir.as_ref().join("include"))
                 .flag("-std=c++17")
                 .flag("-Wno-deprecated-declarations")
+                .flag("-Wno-missing-template-arg-list-after-template-kw")
+                .flag("-Wno-macro-redefined")
+                .flag("-Wno-defaulted-function-deleted")
+                .flag("-w")
                 .flag("-DLLVM_ON_UNIX=1")
                 .flag("-DLLVM_VERSION_STRING=")
                 .file("xla_rs/xla_rs.cc")
@@ -52,21 +56,25 @@ fn make_shared_lib<P: AsRef<Path>>(os: OS, xla_dir: P) {
     };
 }
 
-fn env_var_rerun(name: &str) -> Option<String> {
-    println!("cargo:rerun-if-env-changed={name}");
-    env::var(name).ok()
-}
+#[path = "scripts/build_helper.rs"]
+mod build_helper;
+
+use build_helper::ensure_xla_installation;
 
 fn main() {
     let os = OS::get();
-    let xla_dir = env_var_rerun("XLA_EXTENSION_DIR")
-        .map_or_else(|| env::current_dir().unwrap().join("xla_extension"), PathBuf::from);
+
+    // Automatically install XLA extension using build_helper
+    let xla_dir = ensure_xla_installation().expect("Failed to install XLA extension");
+
+    // Using XLA extension silently
 
     println!("cargo:rerun-if-changed=xla_rs/xla_rs.h");
     println!("cargo:rerun-if-changed=xla_rs/xla_rs.cc");
     let bindings = bindgen::Builder::default()
         .header("xla_rs/xla_rs.h")
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .clang_arg(format!("-I{}", xla_dir.join("include").display()))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()
         .expect("Unable to generate bindings");
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
