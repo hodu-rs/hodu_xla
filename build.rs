@@ -94,10 +94,32 @@ fn main() {
     }
     println!("cargo:rustc-link-search=native={}", xla_dir.join("lib").display());
     println!("cargo:rustc-link-lib=static=xla_rs");
+
+    let lib_path = xla_dir.join("lib");
+
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let target_profile_dir = PathBuf::from(&out_dir).ancestors().nth(3).unwrap().to_path_buf();
+
+    let lib_extension = match os {
+        OS::Linux => "so",
+        OS::MacOS => "so",
+        OS::Windows => "dll",
+    };
+
+    let src_lib = lib_path.join(format!("libxla_extension.{}", lib_extension));
+    let dst_lib = target_profile_dir.join(format!("libxla_extension.{}", lib_extension));
+
+    if src_lib.exists() {
+        let _ = std::fs::copy(&src_lib, &dst_lib);
+    }
+
     if os == OS::MacOS {
-        println!("cargo:rustc-link-arg=-Wl,-rpath,{}", xla_dir.join("lib").display());
-    } else {
-        println!("cargo:rustc-link-arg=-Wl,-rpath={}", xla_dir.join("lib").display());
+        println!("cargo:rustc-link-arg=-Wl,-headerpad_max_install_names");
+        println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_path.display());
+        println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path");
+    } else if os == OS::Linux {
+        println!("cargo:rustc-link-arg=-Wl,-rpath={}", lib_path.display());
+        println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN");
     }
     println!("cargo:rustc-link-lib=xla_extension");
 }

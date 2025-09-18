@@ -12,7 +12,7 @@ $ErrorActionPreference = "Stop"
 
 # Configuration
 if (-not $InstallDir) {
-    $InstallDir = Join-Path (Get-Location) "xla_extension"
+    $InstallDir = Join-Path $env:USERPROFILE ".hodu\xla-rs\xla_extension"
 }
 
 Write-Host "🚀 Installing XLA Extension v$ElixirNxXlaVersion" -ForegroundColor Green

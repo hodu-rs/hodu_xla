@@ -112,7 +112,12 @@ impl XlaInstaller {
         if let Ok(dir) = env::var("XLA_EXTENSION_DIR") {
             PathBuf::from(dir)
         } else {
-            env::current_dir().unwrap_or_else(|_| PathBuf::from(".")).join("xla_extension")
+            // Use $HOME/.hodu/xla-rs/ as the default installation directory
+            let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
+            PathBuf::from(home)
+                .join(".hodu")
+                .join("xla-rs")
+                .join("xla_extension")
         }
     }
 

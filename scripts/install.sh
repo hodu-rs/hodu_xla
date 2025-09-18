@@ -8,7 +8,7 @@ set -euo pipefail
 
 # Configuration
 ELIXIR_NX_XLA_VERSION="${ELIXIR_NX_XLA_VERSION:-0.8.0}"
-INSTALL_DIR="${XLA_EXTENSION_DIR:-${PWD}/xla_extension}"
+INSTALL_DIR="${XLA_EXTENSION_DIR:-${HOME}/.hodu/xla-rs/xla_extension}"
 
 # Detect OS and architecture
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
