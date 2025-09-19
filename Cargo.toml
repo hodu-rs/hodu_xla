@@ -16,6 +16,9 @@ cuda = []
 
 [dependencies]
 libc = "0.2"
+half = { version = "2.6.0", default-features = false, features = [
+    "num-traits",
+] }
 num-traits = "0.2.19"
 num-derive = "0.4.2"
 zip = "5.1.1"

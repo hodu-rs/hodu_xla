@@ -241,8 +241,12 @@ void status_free(status);
 char *status_error_message(status);
 
 #define FOR_EACH_NATIVE_TYPE(_)                                                \
+  _(int8_t, S8)                                                                \
+  _(int16_t, S16)                                                              \
   _(int32_t, S32)                                                              \
   _(int64_t, S64)                                                              \
+  _(uint8_t, U8)                                                               \
+  _(uint16_t, U16)                                                             \
   _(uint32_t, U32)                                                             \
   _(uint64_t, U64)                                                             \
   _(float, F32)                                                                \

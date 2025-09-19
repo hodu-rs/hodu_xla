@@ -11,6 +11,7 @@ use crate::c_lib;
 use crate::error::{Error, Result};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
+use half::{f16, bf16};
 
 pub use literal::Literal;
 pub use pjrt_buffer::PjRtBuffer;
@@ -246,6 +247,94 @@ native_type!(
     literal_get_first_element_double
 );
 
+native_type!(
+    i8,
+    constant_r0_int8_t,
+    constant_r1_int8_t,
+    constant_r1c_int8_t,
+    create_r0_int8_t,
+    create_r1_int8_t,
+    literal_get_first_element_int8_t
+);
+
+native_type!(
+    i16,
+    constant_r0_int16_t,
+    constant_r1_int16_t,
+    constant_r1c_int16_t,
+    create_r0_int16_t,
+    create_r1_int16_t,
+    literal_get_first_element_int16_t
+);
+
+native_type!(
+    u8,
+    constant_r0_uint8_t,
+    constant_r1_uint8_t,
+    constant_r1c_uint8_t,
+    create_r0_uint8_t,
+    create_r1_uint8_t,
+    literal_get_first_element_uint8_t
+);
+
+native_type!(
+    u16,
+    constant_r0_uint16_t,
+    constant_r1_uint16_t,
+    constant_r1c_uint16_t,
+    create_r0_uint16_t,
+    create_r1_uint16_t,
+    literal_get_first_element_uint16_t
+);
+
+// F16 NativeType implementation using uint16_t backend
+impl NativeType for f16 {
+    unsafe fn constant_r0(b: c_lib::xla_builder, v: Self) -> c_lib::xla_op {
+        c_lib::constant_r0_uint16_t(b, v.to_bits())
+    }
+    unsafe fn constant_r1(b: c_lib::xla_builder, v: *const Self, l: usize) -> c_lib::xla_op {
+        let bits: Vec<u16> = std::slice::from_raw_parts(v, l).iter().map(|x| x.to_bits()).collect();
+        c_lib::constant_r1_uint16_t(b, bits.as_ptr(), l)
+    }
+    unsafe fn constant_r1c(b: c_lib::xla_builder, v: Self, l: usize) -> c_lib::xla_op {
+        c_lib::constant_r1c_uint16_t(b, v.to_bits(), l)
+    }
+    unsafe fn create_r0(v: Self) -> c_lib::literal {
+        c_lib::create_r0_uint16_t(v.to_bits())
+    }
+    unsafe fn create_r1(v: *const Self, l: usize) -> c_lib::literal {
+        let bits: Vec<u16> = std::slice::from_raw_parts(v, l).iter().map(|x| x.to_bits()).collect();
+        c_lib::create_r1_uint16_t(bits.as_ptr(), l)
+    }
+    unsafe fn literal_get_first_element(l: c_lib::literal) -> Self {
+        f16::from_bits(c_lib::literal_get_first_element_uint16_t(l))
+    }
+}
+
+// BF16 NativeType implementation using uint16_t backend
+impl NativeType for bf16 {
+    unsafe fn constant_r0(b: c_lib::xla_builder, v: Self) -> c_lib::xla_op {
+        c_lib::constant_r0_uint16_t(b, v.to_bits())
+    }
+    unsafe fn constant_r1(b: c_lib::xla_builder, v: *const Self, l: usize) -> c_lib::xla_op {
+        let bits: Vec<u16> = std::slice::from_raw_parts(v, l).iter().map(|x| x.to_bits()).collect();
+        c_lib::constant_r1_uint16_t(b, bits.as_ptr(), l)
+    }
+    unsafe fn constant_r1c(b: c_lib::xla_builder, v: Self, l: usize) -> c_lib::xla_op {
+        c_lib::constant_r1c_uint16_t(b, v.to_bits(), l)
+    }
+    unsafe fn create_r0(v: Self) -> c_lib::literal {
+        c_lib::create_r0_uint16_t(v.to_bits())
+    }
+    unsafe fn create_r1(v: *const Self, l: usize) -> c_lib::literal {
+        let bits: Vec<u16> = std::slice::from_raw_parts(v, l).iter().map(|x| x.to_bits()).collect();
+        c_lib::create_r1_uint16_t(bits.as_ptr(), l)
+    }
+    unsafe fn literal_get_first_element(l: c_lib::literal) -> Self {
+        bf16::from_bits(c_lib::literal_get_first_element_uint16_t(l))
+    }
+}
+
 macro_rules! element_type {
     ($ty:ty, $v:ident, $sz:tt) => {
         impl ArrayElement for $ty {
@@ -256,24 +345,16 @@ macro_rules! element_type {
     };
 }
 
-// Dummy F16 type.
-#[derive(Copy, Clone, Debug)]
-pub struct F16;
-
-impl ArrayElement for F16 {
-    const TY: ElementType = ElementType::F16;
+impl ArrayElement for f16 {
+    const TY: ElementType = ElementType::U16;
     const ELEMENT_SIZE_IN_BYTES: usize = 2;
-    const ZERO: Self = Self;
+    const ZERO: Self = f16::ZERO;
 }
 
-// Dummy BF16 type.
-#[derive(Copy, Clone, Debug)]
-pub struct Bf16;
-
-impl ArrayElement for Bf16 {
-    const TY: ElementType = ElementType::Bf16;
+impl ArrayElement for bf16 {
+    const TY: ElementType = ElementType::U16;
     const ELEMENT_SIZE_IN_BYTES: usize = 2;
-    const ZERO: Self = Self;
+    const ZERO: Self = bf16::ZERO;
 }
 
 element_type!(u8, U8, 1);
