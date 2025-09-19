@@ -29,7 +29,7 @@ impl OS {
 
     pub fn platform_name(&self) -> &'static str {
         match self {
-            OS::Linux => "linux",
+            OS::Linux => "linux-gnu",
             OS::MacOS => "darwin",
             OS::Windows => "windows",
         }
