@@ -1,76 +1,208 @@
 /// Main library error type.
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug)]
 pub enum Error {
     /// Incorrect number of elements.
-    #[error("wrong element count {element_count} for dims {dims:?}")]
-    WrongElementCount { dims: Vec<usize>, element_count: usize },
+    WrongElementCount {
+        dims: Vec<usize>,
+        element_count: usize,
+    },
 
     /// Error from the xla C++ library.
-    #[error("xla error {msg}\n{backtrace}")]
-    XlaError { msg: String, backtrace: String },
+    XlaError {
+        msg: String,
+        backtrace: String,
+    },
 
-    #[error("unexpected element type {0}")]
     UnexpectedElementType(i32),
 
-    #[error("unexpected number of dimensions, expected: {expected}, got: {got} ({dims:?})")]
-    UnexpectedNumberOfDims { expected: usize, got: usize, dims: Vec<i64> },
+    UnexpectedNumberOfDims {
+        expected: usize,
+        got: usize,
+        dims: Vec<i64>,
+    },
 
-    #[error("not an element type, got: {got:?}")]
-    NotAnElementType { got: crate::PrimitiveType },
+    NotAnElementType {
+        got: crate::PrimitiveType,
+    },
 
-    #[error("not an array, expected: {expected:?}, got: {got:?}")]
-    NotAnArray { expected: Option<usize>, got: crate::Shape },
+    NotAnArray {
+        expected: Option<usize>,
+        got: crate::Shape,
+    },
 
-    #[error("cannot handle unsupported shapes {shape:?}")]
-    UnsupportedShape { shape: crate::Shape },
+    UnsupportedShape {
+        shape: crate::Shape,
+    },
 
-    #[error("unexpected number of tuple elements, expected: {expected}, got: {got}")]
-    UnexpectedNumberOfElemsInTuple { expected: usize, got: usize },
+    UnexpectedNumberOfElemsInTuple {
+        expected: usize,
+        got: usize,
+    },
 
-    #[error("element type mismatch, on-device: {on_device:?}, on-host: {on_host:?}")]
-    ElementTypeMismatch { on_device: crate::ElementType, on_host: crate::ElementType },
+    ElementTypeMismatch {
+        on_device: crate::ElementType,
+        on_host: crate::ElementType,
+    },
 
-    #[error("unsupported element type for {op}: {ty:?}")]
-    UnsupportedElementType { ty: crate::PrimitiveType, op: &'static str },
+    UnsupportedElementType {
+        ty: crate::PrimitiveType,
+        op: &'static str,
+    },
 
-    #[error(
-        "target buffer is too large, offset {offset}, shape {shape:?}, buffer_len: {buffer_len}"
-    )]
-    TargetBufferIsTooLarge { offset: usize, shape: crate::ArrayShape, buffer_len: usize },
+    TargetBufferIsTooLarge {
+        offset: usize,
+        shape: crate::ArrayShape,
+        buffer_len: usize,
+    },
 
-    #[error("binary buffer is too large, element count {element_count}, buffer_len: {buffer_len}")]
-    BinaryBufferIsTooLarge { element_count: usize, buffer_len: usize },
+    BinaryBufferIsTooLarge {
+        element_count: usize,
+        buffer_len: usize,
+    },
 
-    #[error("empty literal")]
     EmptyLiteral,
 
-    #[error("index out of bounds {index}, rank {rank}")]
-    IndexOutOfBounds { index: i64, rank: usize },
+    IndexOutOfBounds {
+        index: i64,
+        rank: usize,
+    },
 
-    #[error("npy/npz error {0}")]
     Npy(String),
 
     /// I/O error.
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
+    Io(std::io::Error),
 
     /// Zip file format error.
-    #[error(transparent)]
-    Zip(#[from] zip::result::ZipError),
+    Zip(zip::result::ZipError),
 
     /// Integer parse error.
-    #[error(transparent)]
-    ParseInt(#[from] std::num::ParseIntError),
+    ParseInt(std::num::ParseIntError),
 
-    #[error("cannot create literal with shape {ty:?} {dims:?} from bytes data with len {data_len_in_bytes}")]
     CannotCreateLiteralWithData {
         data_len_in_bytes: usize,
         ty: crate::PrimitiveType,
         dims: Vec<usize>,
     },
 
-    #[error("invalid dimensions in matmul, lhs: {lhs_dims:?}, rhs: {rhs_dims:?}, {msg}")]
-    MatMulIncorrectDims { lhs_dims: Vec<i64>, rhs_dims: Vec<i64>, msg: &'static str },
+    MatMulIncorrectDims {
+        lhs_dims: Vec<i64>,
+        rhs_dims: Vec<i64>,
+        msg: &'static str,
+    },
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::WrongElementCount { dims, element_count } => {
+                write!(f, "wrong element count {} for dims {:?}", element_count, dims)
+            }
+            Error::XlaError { msg, backtrace } => {
+                write!(f, "xla error {}\n{}", msg, backtrace)
+            }
+            Error::UnexpectedElementType(ty) => {
+                write!(f, "unexpected element type {}", ty)
+            }
+            Error::UnexpectedNumberOfDims { expected, got, dims } => {
+                write!(
+                    f,
+                    "unexpected number of dimensions, expected: {}, got: {} ({:?})",
+                    expected, got, dims
+                )
+            }
+            Error::NotAnElementType { got } => {
+                write!(f, "not an element type, got: {:?}", got)
+            }
+            Error::NotAnArray { expected, got } => {
+                write!(f, "not an array, expected: {:?}, got: {:?}", expected, got)
+            }
+            Error::UnsupportedShape { shape } => {
+                write!(f, "cannot handle unsupported shapes {:?}", shape)
+            }
+            Error::UnexpectedNumberOfElemsInTuple { expected, got } => {
+                write!(
+                    f,
+                    "unexpected number of tuple elements, expected: {}, got: {}",
+                    expected, got
+                )
+            }
+            Error::ElementTypeMismatch { on_device, on_host } => {
+                write!(
+                    f,
+                    "element type mismatch, on-device: {:?}, on-host: {:?}",
+                    on_device, on_host
+                )
+            }
+            Error::UnsupportedElementType { ty, op } => {
+                write!(f, "unsupported element type for {}: {:?}", op, ty)
+            }
+            Error::TargetBufferIsTooLarge { offset, shape, buffer_len } => {
+                write!(
+                    f,
+                    "target buffer is too large, offset {}, shape {:?}, buffer_len: {}",
+                    offset, shape, buffer_len
+                )
+            }
+            Error::BinaryBufferIsTooLarge { element_count, buffer_len } => {
+                write!(
+                    f,
+                    "binary buffer is too large, element count {}, buffer_len: {}",
+                    element_count, buffer_len
+                )
+            }
+            Error::EmptyLiteral => write!(f, "empty literal"),
+            Error::IndexOutOfBounds { index, rank } => {
+                write!(f, "index out of bounds {}, rank {}", index, rank)
+            }
+            Error::Npy(msg) => write!(f, "npy/npz error {}", msg),
+            Error::Io(err) => write!(f, "I/O error: {}", err),
+            Error::Zip(err) => write!(f, "Zip error: {}", err),
+            Error::ParseInt(err) => write!(f, "Parse int error: {}", err),
+            Error::CannotCreateLiteralWithData { data_len_in_bytes, ty, dims } => {
+                write!(
+                    f,
+                    "cannot create literal with shape {:?} {:?} from bytes data with len {}",
+                    ty, dims, data_len_in_bytes
+                )
+            }
+            Error::MatMulIncorrectDims { lhs_dims, rhs_dims, msg } => {
+                write!(
+                    f,
+                    "invalid dimensions in matmul, lhs: {:?}, rhs: {:?}, {}",
+                    lhs_dims, rhs_dims, msg
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::Io(err) => Some(err),
+            Error::Zip(err) => Some(err),
+            Error::ParseInt(err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Error::Io(err)
+    }
+}
+
+impl From<zip::result::ZipError> for Error {
+    fn from(err: zip::result::ZipError) -> Self {
+        Error::Zip(err)
+    }
+}
+
+impl From<std::num::ParseIntError> for Error {
+    fn from(err: std::num::ParseIntError) -> Self {
+        Error::ParseInt(err)
+    }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
