@@ -8,18 +8,20 @@
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #pragma GCC diagnostic ignored "-Wreturn-type"
 #include "xla/client/client_library.h"
-#include "xla/client/lib/constants.h"
-#include "xla/client/lib/matrix.h"
-#include "xla/client/xla_builder.h"
+#include "xla/hlo/builder/lib/constants.h"
+#include "xla/hlo/builder/lib/matrix.h"
+#include "xla/hlo/builder/xla_builder.h"
 #include "xla/literal_util.h"
 #include "xla/pjrt/gpu/gpu_helpers.h"
 #include "xla/pjrt/gpu/se_gpu_pjrt_client.h"
 #include "xla/pjrt/pjrt_client.h"
 #include "xla/pjrt/pjrt_stream_executor_client.h"
 #include "xla/pjrt/tfrt_cpu_pjrt_client.h"
-#include "xla/service/hlo_parser.h"
+#include "xla/pjrt/plugin/xla_cpu/xla_cpu_pjrt_client.h"
+#include "xla/hlo/parser/hlo_parser.h"
 #include "xla/shape_util.h"
-#include "xla/statusor.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #pragma GCC diagnostic pop
 using namespace xla;
 
@@ -30,7 +32,7 @@ typedef PjRtDevice *pjrt_device;
 typedef PjRtBuffer *pjrt_buffer;
 typedef XlaBuilder *xla_builder;
 typedef XlaOp *xla_op;
-typedef Status *status;
+typedef absl::Status *status;
 typedef Shape *shape;
 typedef Literal *literal;
 typedef XlaComputation *xla_computation;

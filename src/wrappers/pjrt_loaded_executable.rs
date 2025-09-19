@@ -51,6 +51,7 @@ impl PjRtLoadedExecutable {
         Ok(self.process_execute_outputs(outputs))
     }
 
+
     pub fn execute_b<L: std::borrow::Borrow<PjRtBuffer>>(
         &self,
         args: &[L],

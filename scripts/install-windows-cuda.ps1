@@ -1,5 +1,5 @@
-# hodu-rs/xla-rs Binary Installation Script for Windows PowerShell
-# This script downloads and installs pre-compiled XLA binaries from the hodu-rs/xla-rs project
+# hodu-rs/xla-rs CUDA Binary Installation Script for Windows PowerShell
+# This script downloads and installs pre-compiled XLA CUDA binaries from the hodu-rs/xla-rs project
 
 param(
     [string]$XlaVersion = "0.9.1",
@@ -19,16 +19,23 @@ if (-not $InstallDir) {
 if ($env:XLA_VERSION) { $XlaVersion = $env:XLA_VERSION }
 if ($env:LIB_VERSION) { $LibVersion = $env:LIB_VERSION }
 
-Write-Host "🚀 Installing XLA Extension v$XlaVersion" -ForegroundColor Green
+Write-Host "🚀 Installing XLA CUDA Extension v$XlaVersion" -ForegroundColor Green
 Write-Host "📁 Installation directory: $InstallDir" -ForegroundColor Cyan
+Write-Host "🎯 Target: CUDA" -ForegroundColor Cyan
 
 # Detect architecture
 $Arch = if ([System.Environment]::Is64BitOperatingSystem) { "x86_64" } else { "x86" }
 Write-Host "🖥️  Detected Architecture: $Arch" -ForegroundColor Cyan
 
-# Build download URL
+# Note: Currently only x86_64 CUDA binaries are available for Windows
+if ($Arch -ne "x86_64") {
+    Write-Host "❌ CUDA binaries are only available for x86_64 architecture" -ForegroundColor Red
+    exit 1
+}
+
+# Build download URL for CUDA version
 $BaseUrl = "https://github.com/hodu-rs/xla-rs/releases/download"
-$Filename = "xla_extension-$XlaVersion-$Arch-windows-cpu.zip"
+$Filename = "xla_extension-$XlaVersion-$Arch-windows-cuda12.zip"
 $DownloadUrl = "$BaseUrl/$LibVersion/$Filename"
 
 Write-Host "🌐 Download URL: $DownloadUrl" -ForegroundColor Yellow
@@ -43,7 +50,7 @@ Set-Location $InstallDir
 # Download if not already present
 $FilePath = Join-Path $InstallDir $Filename
 if (-not (Test-Path $FilePath)) {
-    Write-Host "📥 Downloading XLA extension..." -ForegroundColor Yellow
+    Write-Host "📥 Downloading XLA CUDA extension..." -ForegroundColor Yellow
 
     try {
         # Use Invoke-WebRequest for downloading
@@ -53,6 +60,7 @@ if (-not (Test-Path $FilePath)) {
     }
     catch {
         Write-Host "❌ Download failed: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Note: CUDA binaries may not be available for Windows yet. Check the releases page." -ForegroundColor Yellow
         exit 1
     }
 }
@@ -125,13 +133,10 @@ else {
 
 # Set up environment
 Write-Host ""
-Write-Host "🎉 Installation completed successfully!" -ForegroundColor Green
+Write-Host "🎉 XLA CUDA extension installation completed successfully!" -ForegroundColor Green
 Write-Host ""
-Write-Host "📝 To use this installation, set the environment variable:" -ForegroundColor Cyan
-Write-Host "   `$env:XLA_EXTENSION_DIR = `"$InstallDir`"" -ForegroundColor White
-Write-Host ""
-Write-Host "🔧 Or set it permanently:" -ForegroundColor Cyan
-Write-Host "   [Environment]::SetEnvironmentVariable('XLA_EXTENSION_DIR', '$InstallDir', 'User')" -ForegroundColor White
+Write-Host "📝 Installation directory: $InstallDir" -ForegroundColor Cyan
+Write-Host "🔧 The extension is now ready for use with CUDA-enabled applications." -ForegroundColor Cyan
 Write-Host ""
 
 # Clean up downloaded archive (optional)
@@ -145,4 +150,4 @@ else {
 }
 
 Write-Host ""
-Write-Host "✨ Ready to build Rust projects with XLA support!" -ForegroundColor Green
+Write-Host "✨ Ready to build Rust projects with XLA CUDA support!" -ForegroundColor Green

@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# elixir-nx/xla Binary Installation Script
-# This script downloads and installs pre-compiled XLA binaries from the elixir-nx/xla project
-# Note: This downloads XLA binaries packaged by elixir-nx, not the original Google XLA
+# hodu-rs/xla-rs CUDA Binary Installation Script for Linux
+# This script downloads and installs pre-compiled XLA CUDA binaries from the hodu-rs/xla-rs project
 
 set -euo pipefail
 
@@ -11,13 +10,13 @@ XLA_VERSION="${XLA_VERSION:-0.9.1}"
 LIB_VERSION="${LIB_VERSION:-0.3.0}"
 INSTALL_DIR="${XLA_EXTENSION_DIR:-${HOME}/.hodu/xla-rs/xla_extension}"
 
-# Detect OS and architecture
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+# Detect architecture
 ARCH=$(uname -m)
 
-echo "🚀 Installing hodu-rs/xla-rs v${XLA_VERSION} (pre-compiled XLA binaries)"
+echo "🚀 Installing hodu-rs/xla-rs v${XLA_VERSION} CUDA (pre-compiled XLA binaries)"
 echo "📁 Installation directory: ${INSTALL_DIR}"
-echo "🖥️  Detected OS: ${OS}, Architecture: ${ARCH}"
+echo "🎯 Target: CUDA"
+echo "🖥️  Detected Architecture: ${ARCH}"
 
 # Map architecture names
 case "${ARCH}" in
@@ -33,25 +32,9 @@ case "${ARCH}" in
         ;;
 esac
 
-# Map OS names and determine file extension
-case "${OS}" in
-    "linux")
-        PLATFORM="linux"
-        EXT="tar.gz"
-        ;;
-    "darwin")
-        PLATFORM="darwin"
-        EXT="tar.gz"
-        ;;
-    *)
-        echo "❌ Unsupported OS: ${OS}"
-        exit 1
-        ;;
-esac
-
-# Build download URL
+# Build download URL for CUDA version
 BASE_URL="https://github.com/hodu-rs/xla-rs/releases/download"
-FILENAME="xla_extension-${XLA_VERSION}-${ARCH}-${PLATFORM}-cpu.${EXT}"
+FILENAME="xla_extension-${XLA_VERSION}-${ARCH}-linux-gnu-cuda12.tar.gz"
 DOWNLOAD_URL="${BASE_URL}/${LIB_VERSION}/${FILENAME}"
 
 echo "🌐 Download URL: ${DOWNLOAD_URL}"
@@ -62,7 +45,7 @@ cd "${INSTALL_DIR}"
 
 # Download if not already present
 if [ ! -f "${FILENAME}" ]; then
-    echo "📥 Downloading XLA extension..."
+    echo "📥 Downloading XLA CUDA extension..."
     if command -v curl >/dev/null 2>&1; then
         curl -L -o "${FILENAME}" "${DOWNLOAD_URL}"
     elif command -v wget >/dev/null 2>&1; then
@@ -71,13 +54,23 @@ if [ ! -f "${FILENAME}" ]; then
         echo "❌ Neither curl nor wget found. Please install one of them."
         exit 1
     fi
+
+    if [ $? -ne 0 ]; then
+        echo "❌ Download failed. Please check your internet connection and try again."
+        rm -f "${FILENAME}"
+        exit 1
+    fi
+
+    echo "✅ Download completed"
 else
     echo "✅ ${FILENAME} already exists, skipping download"
 fi
 
 # Extract archive
 echo "📦 Extracting archive..."
-if [ -d "lib" ] && [ -d "include" ]; then
+
+# Remove existing directories if they exist
+if [ -d "lib" ] || [ -d "include" ]; then
     echo "⚠️  Installation directories already exist, removing..."
     rm -rf lib include
 fi
@@ -89,20 +82,20 @@ if [ -d "xla_extension/lib" ] && [ -d "xla_extension/include" ]; then
     echo "📁 Moving contents from xla_extension subdirectory..."
     mv xla_extension/lib .
     mv xla_extension/include .
-    rmdir xla_extension
+    rm -rf xla_extension
 fi
+
+echo "✅ Extraction completed successfully"
 
 # Verify installation
 if [ -d "lib" ] && [ -d "include" ]; then
-    echo "✅ Extraction completed successfully"
-
-    # List library files
     echo "📚 Library files:"
     ls -la lib/
 
-    # Check for critical headers
     echo "🔍 Checking critical headers:"
-    if [ -f "include/xla/pjrt/c/pjrt_c_api.h" ]; then
+    PJRT_HEADER="include/xla/pjrt/c/pjrt_c_api.h"
+
+    if [ -f "${PJRT_HEADER}" ]; then
         echo "✅ PJRT C API header found"
     else
         echo "⚠️ PJRT C API header not found"
@@ -118,26 +111,21 @@ else
     exit 1
 fi
 
-# Set up environment
 echo ""
-echo "🎉 Installation completed successfully!"
+echo "🎉 XLA CUDA extension installation completed successfully!"
 echo ""
-echo "📝 To use this installation, set the environment variable:"
-echo "   export XLA_EXTENSION_DIR=${INSTALL_DIR}"
-echo ""
-echo "🔧 Or use it directly in your build:"
-echo "   XLA_EXTENSION_DIR=${INSTALL_DIR} cargo build"
+echo "📝 Installation directory: ${INSTALL_DIR}"
+echo "🔧 The extension is now ready for use with CUDA-enabled applications."
 echo ""
 
-# Clean up downloaded archive (optional)
-read -p "🗑️  Remove downloaded archive ${FILENAME}? (y/N): " -n 1 -r
-echo
+# Optional: Clean up downloaded archive
+read -p "🗑️  Remove downloaded archive ${FILENAME}? (y/N): " -r
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    rm "${FILENAME}"
+    rm -f "${FILENAME}"
     echo "✅ Archive removed"
 else
     echo "📦 Archive kept at ${INSTALL_DIR}/${FILENAME}"
 fi
 
 echo ""
-echo "✨ Ready to build Rust projects with XLA support!"
+echo "✨ Ready to build Rust projects with XLA CUDA support!"

@@ -48,12 +48,27 @@ impl OS {
             OS::Windows => "install.ps1",
         }
     }
+
+    pub fn cuda_script_name(&self) -> Option<&'static str> {
+        match self {
+            OS::Linux => Some("install-linux-cuda.sh"),
+            OS::MacOS => None, // macOS doesn't support CUDA
+            OS::Windows => Some("install-windows-cuda.ps1"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Arch {
     X86_64,
     Aarch64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Target {
+    Cpu,
+    #[cfg(feature = "cuda")]
+    Cuda,
 }
 
 impl Arch {
@@ -73,28 +88,68 @@ impl Arch {
     }
 }
 
+impl Target {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Target::Cpu => "cpu",
+            #[cfg(feature = "cuda")]
+            Target::Cuda => "cuda",
+        }
+    }
+}
+
 /// Configuration for XLA extension installation
 pub struct XlaInstaller {
-    version: String,
+    /// XLA extension version (e.g., "0.9.1")
+    xla_version: String,
+    /// xla-rs library version for GitHub releases
+    library_version: String,
     install_dir: PathBuf,
     os: OS,
     arch: Arch,
+    target: Target,
     force_reinstall: bool,
 }
 
 impl XlaInstaller {
     pub fn new() -> Result<Self, String> {
-        let version = env::var("ELIXIR_NX_XLA_VERSION").unwrap_or_else(|_| "0.8.0".to_string());
+        let xla_version = env::var("XLA_VERSION").unwrap_or_else(|_| "elixirnxxla0.9.1".to_string());
+        let library_version = env!("CARGO_PKG_VERSION").to_string();
         let install_dir = Self::get_install_dir();
         let os = OS::detect()?;
         let arch = Arch::detect()?;
+        let target = Target::Cpu; // Default to CPU
 
-        Ok(Self { version, install_dir, os, arch, force_reinstall: false })
+        Ok(Self {
+            xla_version,
+            library_version,
+            install_dir,
+            os,
+            arch,
+            target,
+            force_reinstall: false
+        })
     }
 
-    pub fn with_version(version: String) -> Result<Self, String> {
+    pub fn with_target(mut self, target: Target) -> Self {
+        self.target = target;
+        self
+    }
+
+    #[cfg(feature = "cuda")]
+    pub fn cuda() -> Result<Self, String> {
+        Ok(Self::new()?.with_target(Target::Cuda))
+    }
+
+    pub fn with_xla_version(xla_version: String) -> Result<Self, String> {
         let mut installer = Self::new()?;
-        installer.version = version;
+        installer.xla_version = xla_version;
+        Ok(installer)
+    }
+
+    pub fn with_library_version(library_version: String) -> Result<Self, String> {
+        let mut installer = Self::new()?;
+        installer.library_version = library_version;
         Ok(installer)
     }
 
@@ -185,7 +240,18 @@ impl XlaInstaller {
         let script_dir =
             env::current_dir().map_err(|_| "Cannot get current directory")?.join("scripts");
 
-        let script_path = script_dir.join(self.os.script_name());
+        let script_name = match self.target {
+            #[cfg(feature = "cuda")]
+            Target::Cuda => {
+                match self.os.cuda_script_name() {
+                    Some(name) => name,
+                    None => return Err(format!("CUDA is not supported on {}", self.os.platform_name())),
+                }
+            },
+            Target::Cpu => self.os.script_name(),
+        };
+
+        let script_path = script_dir.join(script_name);
 
         if !script_path.exists() {
             return Err("Installation script not found".to_string());
@@ -206,7 +272,8 @@ impl XlaInstaller {
             }
         };
 
-        cmd.env("ELIXIR_NX_XLA_VERSION", &self.version);
+        cmd.env("XLA_VERSION", &self.xla_version);
+        cmd.env("LIB_VERSION", &self.library_version);
         cmd.env("XLA_EXTENSION_DIR", &self.install_dir);
 
         let output =
@@ -254,7 +321,7 @@ impl XlaInstaller {
     fn get_archive_filename(&self) -> String {
         format!(
             "xla_extension-{}-{}-{}-cpu.{}",
-            self.version,
+            self.xla_version,
             self.arch.name(),
             self.os.platform_name(),
             self.os.file_extension()
@@ -262,7 +329,7 @@ impl XlaInstaller {
     }
 
     fn get_download_url(&self, filename: &str) -> String {
-        format!("https://github.com/elixir-nx/xla/releases/download/v{}/{}", self.version, filename)
+        format!("https://github.com/hodu-rs/xla-rs/releases/download/{}/{}", self.library_version, filename)
     }
 
     fn download_file(&self, url: &str, output_path: &Path) -> Result<(), String> {
@@ -419,7 +486,8 @@ impl XlaInstaller {
     /// Get installation info for debugging
     pub fn get_info(&self) -> InstallationInfo {
         InstallationInfo {
-            version: self.version.clone(),
+            version: self.xla_version.clone(),
+            library_version: self.library_version.clone(),
             install_dir: self.install_dir.clone(),
             os: self.os,
             arch: self.arch,
@@ -437,6 +505,7 @@ impl Default for XlaInstaller {
 #[derive(Debug)]
 pub struct InstallationInfo {
     pub version: String,
+    pub library_version: String,
     pub install_dir: PathBuf,
     pub os: OS,
     pub arch: Arch,
@@ -471,7 +540,7 @@ pub fn ensure_xla_installation() -> Result<PathBuf, String> {
 
 /// Convenience function with custom version
 pub fn ensure_xla_installation_with_version(version: String) -> Result<PathBuf, String> {
-    let installer = XlaInstaller::with_version(version)?;
+    let installer = XlaInstaller::with_xla_version(version)?;
 
     println!("cargo:warning={}", installer.get_info());
 
@@ -479,6 +548,17 @@ pub fn ensure_xla_installation_with_version(version: String) -> Result<PathBuf, 
     installer.validate_installation()?;
     installer.setup_build_env()?;
 
+    Ok(installer.install_dir().to_path_buf())
+}
+
+/// Convenience function for CUDA installation
+#[cfg(feature = "cuda")]
+pub fn ensure_cuda_installation() -> Result<PathBuf, String> {
+    let installer = XlaInstaller::cuda()?;
+    println!("cargo:warning=Installing XLA with CUDA support");
+    installer.install_if_needed()?;
+    installer.validate_installation()?;
+    installer.setup_build_env()?;
     Ok(installer.install_dir().to_path_buf())
 }
 

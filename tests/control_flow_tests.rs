@@ -54,13 +54,14 @@ fn while_op2() -> Result<()> {
     let computation = w.build()?;
     let result = client.compile(&computation)?;
     let result = result.execute::<xla::Literal>(&[])?;
-    let mut result = result[0][0].to_literal_sync()?;
-    let result = result.decompose_tuple()?;
-    assert_eq!(result[0].element_count(), 1);
-    assert_eq!(result[0].shape()?, xla::Shape::array::<i32>(vec![]));
-    assert_eq!(result[0].to_vec::<i32>()?, [11]);
-    assert_eq!(result[1].element_count(), 2);
-    assert_eq!(result[1].shape()?, xla::Shape::array::<f32>(vec![2]));
-    assert_eq!(result[1].to_vec::<f32>()?, [1.2, 13.3]);
+    assert_eq!(result[0].len(), 2);
+    let result0 = result[0][0].to_literal_sync()?;
+    let result1 = result[0][1].to_literal_sync()?;
+    assert_eq!(result0.element_count(), 1);
+    assert_eq!(result0.shape()?, xla::Shape::array::<i32>(vec![]));
+    assert_eq!(result0.to_vec::<i32>()?, [11]);
+    assert_eq!(result1.element_count(), 2);
+    assert_eq!(result1.shape()?, xla::Shape::array::<f32>(vec![2]));
+    assert_eq!(result1.to_vec::<f32>()?, [1.2, 13.3]);
     Ok(())
 }

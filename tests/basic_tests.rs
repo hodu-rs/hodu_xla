@@ -76,12 +76,12 @@ fn tuple_op() -> Result<()> {
     let x = xla::Literal::scalar(3.1f32);
     let y = xla::Literal::vec1(&[4.2f32, 1.337f32]);
     let result = tuple.execute::<xla::Literal>(&[x, y])?;
-    let result = result[0][0].to_literal_sync()?;
-    assert_eq!(result.shape()?.tuple_size(), Some(2));
-    let mut result = result;
-    let result = result.decompose_tuple()?;
-    assert_eq!(result[1].to_vec::<f32>()?, [4.2, 1.337]);
-    assert_eq!(result[0].to_vec::<f32>()?, [3.1]);
+
+    assert_eq!(result[0].len(), 2);
+    let result0 = result[0][0].to_literal_sync()?;
+    let result1 = result[0][1].to_literal_sync()?;
+    assert_eq!(result0.to_vec::<f32>()?, [3.1]);
+    assert_eq!(result1.to_vec::<f32>()?, [4.2, 1.337]);
     Ok(())
 }
 

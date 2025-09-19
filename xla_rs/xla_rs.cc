@@ -7,7 +7,7 @@
 #define ASSIGN_OR_RETURN_STATUS_IMPL(statusor, lhs, rexpr)                     \
   auto statusor = (rexpr);                                                     \
   if (!statusor.ok())                                                          \
-    return new Status(statusor.status());                                      \
+    return new absl::Status(statusor.status());                                      \
   auto lhs = std::move(statusor.value());
 
 #define MAYBE_RETURN_STATUS(rexpr)                                             \
@@ -17,7 +17,7 @@
 #define MAYBE_RETURN_STATUS_IMPL(statusor, rexpr)                              \
   auto statusor = (rexpr);                                                     \
   if (!statusor.ok())                                                          \
-    return new Status(statusor);
+    return new absl::Status(statusor);
 
 #define BEGIN_PROTECT_OP try {
 #define END_PROTECT_OP_B(builder)                                              \
@@ -33,7 +33,9 @@
   }
 
 status pjrt_cpu_client_create(pjrt_client *output) {
-  ASSIGN_OR_RETURN_STATUS(client, xla::GetTfrtCpuClient(false));
+  CpuClientOptions options;
+  options.asynchronous = false;
+  ASSIGN_OR_RETURN_STATUS(client, xla::GetXlaPjrtCpuClient(options));
   *output = new std::shared_ptr(std::move(client));
   return nullptr;
 }
@@ -108,7 +110,7 @@ status pjrt_buffer_from_host_buffer(const pjrt_client client,
       (*client)->BufferFromHostBuffer(
           d, (PrimitiveType)pr_type, absl::Span<const int64_t>(ds, dsize), {},
           PjRtClient::HostBufferSemantics::kImmutableOnlyDuringCall, []() {},
-          device_));
+          device_->memory_spaces()[0], nullptr));
   *output = buffer.release();
   return nullptr;
 }
@@ -117,7 +119,7 @@ status pjrt_buffer_from_host_literal(const pjrt_client client,
                                      const pjrt_device device, const literal l,
                                      pjrt_buffer *output) {
   PjRtDevice *d = device == nullptr ? (*client)->devices()[0] : device;
-  ASSIGN_OR_RETURN_STATUS(buffer, (*client)->BufferFromHostLiteral(*l, d));
+  ASSIGN_OR_RETURN_STATUS(buffer, (*client)->BufferFromHostLiteral(*l, d->memory_spaces()[0]));
   *output = buffer.release();
   return nullptr;
 }
@@ -135,7 +137,7 @@ shape pjrt_buffer_on_device_shape(pjrt_buffer b) {
 
 status pjrt_buffer_copy_to_device(pjrt_buffer b, pjrt_device device,
                                   pjrt_buffer *output) {
-  ASSIGN_OR_RETURN_STATUS(copied_b, b->CopyToDevice(device));
+  ASSIGN_OR_RETURN_STATUS(copied_b, b->CopyToMemorySpace(device->memory_spaces()[0]));
   *output = copied_b.release();
   return nullptr;
 }
@@ -153,7 +155,7 @@ int pjrt_device_id(pjrt_device d) { return d->id(); }
 int pjrt_device_process_index(pjrt_device d) { return d->process_index(); }
 
 int pjrt_device_local_hardware_id(pjrt_device d) {
-  return d->local_hardware_id();
+  return d->local_hardware_id().value();
 }
 
 status pjrt_device_transfer_to_infeed(pjrt_device d, const literal l) {
@@ -879,7 +881,7 @@ status compile(const pjrt_client client, const xla_computation computation,
                pjrt_loaded_executable *output) {
   CompileOptions options;
   ASSIGN_OR_RETURN_STATUS(executable,
-                          (*client)->Compile(*computation, options));
+                          (*client)->CompileAndLoad(*computation, options));
   *output = executable.release();
   return nullptr;
 }
@@ -899,11 +901,12 @@ status execute(const pjrt_loaded_executable exe, const literal *inputs,
   auto client = exe->client();
   ExecuteOptions options;
   options.strict_shape_checking = false;
+  options.untuple_result = true;
   std::vector<PjRtBuffer *> input_buffer_ptrs;
   PjRtDevice *device = client->devices()[0];
   for (int i = 0; i < ninputs; ++i) {
     ASSIGN_OR_RETURN_STATUS(buffer,
-                            client->BufferFromHostLiteral(*inputs[i], device));
+                            client->BufferFromHostLiteral(*inputs[i], device->memory_spaces()[0]));
     // Wait for the transfer to have completed to avoid the literal potentially
     // getting out of scope before it has been transfered.
     MAYBE_RETURN_STATUS(buffer->GetReadyFuture().Await());
@@ -927,11 +930,13 @@ status execute(const pjrt_loaded_executable exe, const literal *inputs,
   return nullptr;
 }
 
+
 status execute_b(const pjrt_loaded_executable exe, const pjrt_buffer *inputs,
                  int ninputs, pjrt_buffer ***outputs) {
   auto client = exe->client();
   ExecuteOptions options;
   options.strict_shape_checking = false;
+  options.untuple_result = true;
   std::vector<PjRtBuffer *> input_buffer_ptrs(inputs, inputs + ninputs);
   ASSIGN_OR_RETURN_STATUS(results, exe->Execute({input_buffer_ptrs}, options));
   pjrt_buffer **out =
@@ -1059,8 +1064,8 @@ status hlo_module_proto_parse_proto(const char *d, size_t len, bool binary,
     if (!proto.ParseFromString(data) &&
         !proto.mutable_hlo()->ParseFromString(data) &&
         !proto.mutable_hlo()->mutable_hlo_module()->ParseFromString(data)) {
-      return new Status(
-          InvalidArgument("Failed to parse input as HLO protobuf binary"));
+      return new absl::Status(
+          absl::InvalidArgumentError("Failed to parse input as HLO protobuf binary"));
     }
   } else {
     if (!tsl::protobuf::TextFormat::ParseFromString(data, &proto) &&
@@ -1068,8 +1073,8 @@ status hlo_module_proto_parse_proto(const char *d, size_t len, bool binary,
                                                     proto.mutable_hlo()) &&
         !tsl::protobuf::TextFormat::ParseFromString(
             data, proto.mutable_hlo()->mutable_hlo_module())) {
-      return new Status(
-          InvalidArgument("Failed to parse input as HLO protobuf text"));
+      return new absl::Status(
+          absl::InvalidArgumentError("Failed to parse input as HLO protobuf text"));
     }
   }
   ASSIGN_OR_RETURN_STATUS(config, HloModule::CreateModuleConfigFromProto(
