@@ -1,4 +1,4 @@
-#include "xla_rs.h"
+#include "xla_wrapper.h"
 
 #define ASSIGN_OR_RETURN_STATUS(lhs, rexpr)                                    \
   ASSIGN_OR_RETURN_STATUS_IMPL(                                                \
@@ -1045,7 +1045,8 @@ char *xla_computation_name(xla_computation c) {
 void xla_computation_free(xla_computation c) { delete c; }
 
 char *status_error_message(status s) {
-  return strdup(tsl::NullTerminatedMessage(*s));
+  std::string msg(s->message());
+  return strdup(msg.c_str());
 }
 
 status hlo_module_proto_parse_and_return_unverified_module(

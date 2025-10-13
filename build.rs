@@ -24,8 +24,8 @@ impl OS {
 }
 
 fn make_shared_lib<P: AsRef<Path>>(os: OS, xla_dir: P) {
-    println!("cargo:rerun-if-changed=c/xla.cc");
-    println!("cargo:rerun-if-changed=c/xla.h");
+    println!("cargo:rerun-if-changed=c/xla_wrapper.cc");
+    println!("cargo:rerun-if-changed=c/xla_wrapper.h");
     match os {
         OS::Linux | OS::MacOS => {
             cc::Build::new()
@@ -41,8 +41,8 @@ fn make_shared_lib<P: AsRef<Path>>(os: OS, xla_dir: P) {
                 .flag("-w")
                 .flag("-DLLVM_ON_UNIX=1")
                 .flag("-DLLVM_VERSION_STRING=")
-                .file("c/xla.cc")
-                .compile("xla");
+                .file("c/xla_wrapper.cc")
+                .compile("xla_wrapper");
         },
         OS::Windows => {
             cc::Build::new()
@@ -50,8 +50,8 @@ fn make_shared_lib<P: AsRef<Path>>(os: OS, xla_dir: P) {
                 .pic(true)
                 .warnings(false)
                 .include(xla_dir.as_ref().join("include"))
-                .file("c/xla.cc")
-                .compile("xla");
+                .file("c/xla_wrapper.cc")
+                .compile("xla_wrapper");
         },
     };
 }
@@ -73,10 +73,10 @@ fn main() {
 
     // Using XLA extension silently
 
-    println!("cargo:rerun-if-changed=c/xla.h");
-    println!("cargo:rerun-if-changed=c/xla.cc");
+    println!("cargo:rerun-if-changed=c/xla_wrapper.h");
+    println!("cargo:rerun-if-changed=c/xla_wrapper.cc");
     let bindings = bindgen::Builder::default()
-        .header("c/xla.h")
+        .header("c/xla_wrapper.h")
         .clang_arg(format!("-I{}", xla_dir.join("include").display()))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()
@@ -99,7 +99,7 @@ fn main() {
         println!("cargo:rustc-link-arg=-Wl,-lstdc++");
     }
     println!("cargo:rustc-link-search=native={}", xla_dir.join("lib").display());
-    println!("cargo:rustc-link-lib=static=xla");
+    println!("cargo:rustc-link-lib=static=xla_wrapper");
 
     let lib_path = xla_dir.join("lib");
 
