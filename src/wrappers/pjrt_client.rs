@@ -25,8 +25,7 @@ impl PjRtClient {
     /// `preallocate`.
     pub fn gpu(memory_fraction: f64, preallocate: bool) -> Result<Self> {
         let mut ptr: c_lib::pjrt_client = std::ptr::null_mut();
-        let status =
-            unsafe { c_lib::pjrt_gpu_client_create(&mut ptr, memory_fraction, preallocate) };
+        let status = unsafe { c_lib::pjrt_gpu_client_create(&mut ptr, memory_fraction, preallocate) };
         super::handle_status(status)?;
         Ok(Self(Rc::new(PjRtClientInternal(ptr))))
     }
@@ -51,7 +50,10 @@ impl PjRtClient {
         let mut exe: c_lib::pjrt_loaded_executable = std::ptr::null_mut();
         let status = unsafe { c_lib::compile(self.ptr(), c.0, &mut exe) };
         super::handle_status(status)?;
-        Ok(PjRtLoadedExecutable { exe, client: self.clone() })
+        Ok(PjRtLoadedExecutable {
+            exe,
+            client: self.clone(),
+        })
     }
 
     /// The number of devices that this client has detected, e.g. the number of GPUs.
@@ -85,7 +87,13 @@ impl PjRtClient {
         let device_count = self.device_count();
         let mut device_ptrs = vec![std::ptr::null_mut(); device_count];
         unsafe { c_lib::pjrt_client_devices(self.ptr(), device_ptrs.as_mut_ptr()) };
-        device_ptrs.into_iter().map(|device| PjRtDevice { device, marker: PhantomData }).collect()
+        device_ptrs
+            .into_iter()
+            .map(|device| PjRtDevice {
+                device,
+                marker: PhantomData,
+            })
+            .collect()
     }
 
     /// A list of devices that can be used by this client.
@@ -93,7 +101,13 @@ impl PjRtClient {
         let device_count = self.addressable_device_count();
         let mut device_ptrs = vec![std::ptr::null_mut(); device_count];
         unsafe { c_lib::pjrt_client_addressable_devices(self.ptr(), device_ptrs.as_mut_ptr()) };
-        device_ptrs.into_iter().map(|device| PjRtDevice { device, marker: PhantomData }).collect()
+        device_ptrs
+            .into_iter()
+            .map(|device| PjRtDevice {
+                device,
+                marker: PhantomData,
+            })
+            .collect()
     }
 
     /// Transfer some data from the host to a `PjRtBuffer` stored on the target device. If the
@@ -110,7 +124,10 @@ impl PjRtClient {
         let mut buffer: c_lib::pjrt_buffer = std::ptr::null_mut();
         let element_count: usize = dims.iter().product();
         if element_count != data.len() {
-            Err(Error::WrongElementCount { dims: dims.to_vec(), element_count })?
+            Err(Error::WrongElementCount {
+                dims: dims.to_vec(),
+                element_count,
+            })?
         }
         let device = device.map_or(std::ptr::null_mut(), |d| d.device);
         let dims: Vec<_> = dims.iter().map(|d| *d as i64).collect();
@@ -126,7 +143,10 @@ impl PjRtClient {
             )
         };
         super::handle_status(status)?;
-        Ok(PjRtBuffer { buffer, client: self.clone() })
+        Ok(PjRtBuffer {
+            buffer,
+            client: self.clone(),
+        })
     }
 
     /// Transfer some data from the host to a `PjRtBuffer` stored on the target device. If the
@@ -145,7 +165,10 @@ impl PjRtClient {
         let element_count: usize = dims.iter().product();
         let element_size_in_bytes = ty.element_size_in_bytes();
         if element_count * element_size_in_bytes != data.len() {
-            Err(Error::WrongElementCount { dims: dims.to_vec(), element_count })?
+            Err(Error::WrongElementCount {
+                dims: dims.to_vec(),
+                element_count,
+            })?
         }
         let device = device.map_or(std::ptr::null_mut(), |d| d.device);
         let dims: Vec<_> = dims.iter().map(|d| *d as i64).collect();
@@ -161,24 +184,24 @@ impl PjRtClient {
             )
         };
         super::handle_status(status)?;
-        Ok(PjRtBuffer { buffer, client: self.clone() })
+        Ok(PjRtBuffer {
+            buffer,
+            client: self.clone(),
+        })
     }
 
     /// Transfer some data from the host to a `PjRtBuffer` stored on the target device. If the
     /// device is not specified, the default device is used.
     /// The source data is passed as a literal.
-    pub fn buffer_from_host_literal(
-        &self,
-        device: Option<&PjRtDevice>,
-        literal: &Literal,
-    ) -> Result<PjRtBuffer> {
+    pub fn buffer_from_host_literal(&self, device: Option<&PjRtDevice>, literal: &Literal) -> Result<PjRtBuffer> {
         let mut buffer: c_lib::pjrt_buffer = std::ptr::null_mut();
         let device = device.map_or(std::ptr::null_mut(), |d| d.device);
-        let status = unsafe {
-            c_lib::pjrt_buffer_from_host_literal(self.ptr(), device, literal.0, &mut buffer)
-        };
+        let status = unsafe { c_lib::pjrt_buffer_from_host_literal(self.ptr(), device, literal.0, &mut buffer) };
         super::handle_status(status)?;
-        Ok(PjRtBuffer { buffer, client: self.clone() })
+        Ok(PjRtBuffer {
+            buffer,
+            client: self.clone(),
+        })
     }
 }
 

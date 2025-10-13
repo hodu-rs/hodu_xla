@@ -127,7 +127,7 @@ impl XlaInstaller {
             os,
             arch,
             target,
-            force_reinstall: false
+            force_reinstall: false,
         })
     }
 
@@ -169,10 +169,7 @@ impl XlaInstaller {
         } else {
             // Use $HOME/.hodu/xla-rs/ as the default installation directory
             let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
-            PathBuf::from(home)
-                .join(".hodu")
-                .join("xla-rs")
-                .join("xla_extension")
+            PathBuf::from(home).join(".hodu").join("xla-rs").join("xla_extension")
         }
     }
 
@@ -224,8 +221,7 @@ impl XlaInstaller {
     /// Install XLA extension
     pub fn install(&self) -> Result<(), String> {
         // Create installation directory
-        fs::create_dir_all(&self.install_dir)
-            .map_err(|e| format!("Failed to create install directory: {}", e))?;
+        fs::create_dir_all(&self.install_dir).map_err(|e| format!("Failed to create install directory: {}", e))?;
 
         // Try script-based installation first
         if let Ok(()) = self.try_script_installation() {
@@ -237,16 +233,15 @@ impl XlaInstaller {
     }
 
     fn try_script_installation(&self) -> Result<(), String> {
-        let script_dir =
-            env::current_dir().map_err(|_| "Cannot get current directory")?.join("scripts");
+        let script_dir = env::current_dir()
+            .map_err(|_| "Cannot get current directory")?
+            .join("scripts");
 
         let script_name = match self.target {
             #[cfg(feature = "cuda")]
-            Target::Cuda => {
-                match self.os.cuda_script_name() {
-                    Some(name) => name,
-                    None => return Err(format!("CUDA is not supported on {}", self.os.platform_name())),
-                }
+            Target::Cuda => match self.os.cuda_script_name() {
+                Some(name) => name,
+                None => return Err(format!("CUDA is not supported on {}", self.os.platform_name())),
             },
             Target::Cpu => self.os.script_name(),
         };
@@ -264,20 +259,21 @@ impl XlaInstaller {
                 let mut cmd = Command::new("bash");
                 cmd.arg(&script_path);
                 cmd
-            }
+            },
             OS::Windows => {
                 let mut cmd = Command::new("powershell");
                 cmd.args(["-ExecutionPolicy", "Bypass", "-File", script_path.to_str().unwrap()]);
                 cmd
-            }
+            },
         };
 
         cmd.env("XLA_VERSION", &self.xla_version);
         cmd.env("LIB_VERSION", &self.library_version);
         cmd.env("XLA_EXTENSION_DIR", &self.install_dir);
 
-        let output =
-            cmd.output().map_err(|e| format!("Failed to execute installation script: {}", e))?;
+        let output = cmd
+            .output()
+            .map_err(|e| format!("Failed to execute installation script: {}", e))?;
 
         if !output.status.success() {
             return Err(format!(
@@ -310,9 +306,7 @@ impl XlaInstaller {
 
         // Verify installation
         if !self.is_installed() {
-            return Err(
-                "Manual installation failed - XLA extension not found after extraction".to_string()
-            );
+            return Err("Manual installation failed - XLA extension not found after extraction".to_string());
         }
 
         Ok(())
@@ -329,15 +323,19 @@ impl XlaInstaller {
     }
 
     fn get_download_url(&self, filename: &str) -> String {
-        format!("https://github.com/hodu-rs/xla-rs/releases/download/{}/{}", self.library_version, filename)
+        format!(
+            "https://github.com/hodu-rs/xla-rs/releases/download/{}/{}",
+            self.library_version, filename
+        )
     }
 
     fn download_file(&self, url: &str, output_path: &Path) -> Result<(), String> {
         // Downloading XLA extension silently
 
         // Try curl first
-        let curl_result =
-            Command::new("curl").args(["-L", "-o", output_path.to_str().unwrap(), url]).output();
+        let curl_result = Command::new("curl")
+            .args(["-L", "-o", output_path.to_str().unwrap(), url])
+            .output();
 
         if let Ok(output) = curl_result {
             if output.status.success() {
@@ -346,8 +344,9 @@ impl XlaInstaller {
         }
 
         // Try wget as fallback
-        let wget_result =
-            Command::new("wget").args(["-O", output_path.to_str().unwrap(), url]).output();
+        let wget_result = Command::new("wget")
+            .args(["-O", output_path.to_str().unwrap(), url])
+            .output();
 
         if let Ok(output) = wget_result {
             if output.status.success() {
@@ -390,20 +389,16 @@ impl XlaInstaller {
                     let include_src = extracted_subdir.join("include");
 
                     if lib_src.exists() && include_src.exists() {
-                        fs::rename(lib_src, &lib_dir)
-                            .map_err(|e| format!("Failed to move lib directory: {}", e))?;
+                        fs::rename(lib_src, &lib_dir).map_err(|e| format!("Failed to move lib directory: {}", e))?;
                         fs::rename(include_src, &include_dir)
                             .map_err(|e| format!("Failed to move include directory: {}", e))?;
                         let _ = fs::remove_dir_all(extracted_subdir);
                     }
                 }
-            }
+            },
             OS::Windows => {
-                return Err(
-                    "ZIP extraction not implemented. Please use PowerShell script instead."
-                        .to_string(),
-                );
-            }
+                return Err("ZIP extraction not implemented. Please use PowerShell script instead.".to_string());
+            },
         }
 
         Ok(())
@@ -425,13 +420,13 @@ impl XlaInstaller {
         match self.os {
             OS::MacOS => {
                 println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_dir.display());
-            }
+            },
             OS::Linux => {
                 println!("cargo:rustc-link-arg=-Wl,-rpath={}", lib_dir.display());
-            }
+            },
             OS::Windows => {
                 // Windows uses PATH instead of rpath
-            }
+            },
         }
 
         // Link XLA extension library
@@ -568,8 +563,7 @@ pub fn clean_xla_installation() -> Result<(), String> {
     let install_dir = installer.install_dir();
 
     if install_dir.exists() {
-        fs::remove_dir_all(install_dir)
-            .map_err(|e| format!("Failed to remove installation directory: {}", e))?;
+        fs::remove_dir_all(install_dir).map_err(|e| format!("Failed to remove installation directory: {}", e))?;
         println!("cargo:warning=XLA installation cleaned successfully");
     } else {
         println!("cargo:warning=No XLA installation found to clean");

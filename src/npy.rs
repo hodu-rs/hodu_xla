@@ -89,8 +89,7 @@ impl Header {
     // Hacky parser for the npy header, a typical example would be:
     // {'descr': '<f8', 'fortran_order': False, 'shape': (128,), }
     fn parse(header: &str) -> Result<Header> {
-        let header =
-            header.trim_matches(|c: char| c == '{' || c == '}' || c == ',' || c.is_whitespace());
+        let header = header.trim_matches(|c: char| c == '{' || c == '}' || c == ',' || c.is_whitespace());
 
         let mut parts: Vec<String> = vec![];
         let mut start_index = 0usize;
@@ -104,8 +103,8 @@ impl Header {
                         parts.push(header[start_index..index].to_owned());
                         start_index = index + 1;
                     }
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
         parts.push(header[start_index..].to_owned());
@@ -118,7 +117,7 @@ impl Header {
                         let key = key.trim_matches(|c: char| c == '\'' || c.is_whitespace());
                         let value = value.trim_matches(|c: char| c == '\'' || c.is_whitespace());
                         let _ = part_map.insert(key.to_owned(), value.to_owned());
-                    }
+                    },
                     _ => return Err(Error::Npy(format!("unable to parse header {header}"))),
                 }
             }
@@ -159,7 +158,7 @@ impl Header {
                     "D" | "F8" => ElementType::C128,
                     descr => return Err(Error::Npy(format!("unrecognized descr {descr}"))),
                 }
-            }
+            },
         };
         let shape = match part_map.get("shape") {
             None => return Err(Error::Npy("no shape in header".to_string())),
@@ -173,20 +172,19 @@ impl Header {
                         .map(|v| v.trim().parse::<i64>())
                         .collect::<std::result::Result<Vec<_>, _>>()?
                 }
-            }
+            },
         };
-        Ok(Header { descr, fortran_order, shape })
+        Ok(Header {
+            descr,
+            fortran_order,
+            shape,
+        })
     }
 }
 
 pub trait FromRawBytes: Sized {
     type Context;
-    fn from_raw_bytes(
-        h: &Self::Context,
-        ty: ElementType,
-        dims: &[usize],
-        bytes: &[u8],
-    ) -> Result<Self>;
+    fn from_raw_bytes(h: &Self::Context, ty: ElementType, dims: &[usize], bytes: &[u8]) -> Result<Self>;
 
     /// Reads a npy file and return the stored multi-dimensional array as a literal.
     fn read_npy<T: AsRef<Path>>(path: T, c: &Self::Context) -> Result<Self> {
@@ -228,11 +226,7 @@ pub trait FromRawBytes: Sized {
     }
 
     /// Reads a npz file and returns the stored multi-dimensional arrays for some specified names.
-    fn read_npz_by_name<T: AsRef<Path>>(
-        path: T,
-        c: &Self::Context,
-        names: &[&str],
-    ) -> Result<Vec<Self>> {
+    fn read_npz_by_name<T: AsRef<Path>>(path: T, c: &Self::Context, names: &[&str]) -> Result<Vec<Self>> {
         let zip_reader = BufReader::new(File::open(path.as_ref())?);
         let mut zip = zip::ZipArchive::new(zip_reader)?;
         let mut result = vec![];
@@ -259,12 +253,7 @@ pub trait FromRawBytes: Sized {
 impl FromRawBytes for crate::Literal {
     type Context = ();
 
-    fn from_raw_bytes(
-        _: &Self::Context,
-        ty: ElementType,
-        dims: &[usize],
-        bytes: &[u8],
-    ) -> Result<Self> {
+    fn from_raw_bytes(_: &Self::Context, ty: ElementType, dims: &[usize], bytes: &[u8]) -> Result<Self> {
         Self::create_from_shape_and_untyped_data(ty, dims, bytes)
     }
 }
@@ -272,12 +261,7 @@ impl FromRawBytes for crate::Literal {
 impl FromRawBytes for crate::PjRtBuffer {
     type Context = crate::PjRtClient;
 
-    fn from_raw_bytes(
-        client: &Self::Context,
-        ty: ElementType,
-        dims: &[usize],
-        bytes: &[u8],
-    ) -> Result<Self> {
+    fn from_raw_bytes(client: &Self::Context, ty: ElementType, dims: &[usize], bytes: &[u8]) -> Result<Self> {
         client.buffer_from_host_raw_bytes(ty, bytes, dims, None)
     }
 }
@@ -287,8 +271,11 @@ impl crate::Literal {
         f.write_all(NPY_MAGIC_STRING)?;
         f.write_all(&[1u8, 0u8])?;
         let shape = self.array_shape()?;
-        let header =
-            Header { descr: shape.ty(), fortran_order: false, shape: shape.dims().to_vec() };
+        let header = Header {
+            descr: shape.ty(),
+            fortran_order: false,
+            shape: shape.dims().to_vec(),
+        };
         let mut header = header.to_string()?;
         let pad = 16 - (NPY_MAGIC_STRING.len() + 5 + header.len()) % 16;
         for _ in 0..pad % 16 {
@@ -313,13 +300,9 @@ impl crate::Literal {
     }
 
     /// Writes multiple multi-dimensional arrays using the npz format.
-    pub fn write_npz<S: AsRef<str>, T: AsRef<Literal>, P: AsRef<Path>>(
-        ts: &[(S, T)],
-        path: P,
-    ) -> Result<()> {
+    pub fn write_npz<S: AsRef<str>, T: AsRef<Literal>, P: AsRef<Path>>(ts: &[(S, T)], path: P) -> Result<()> {
         let mut zip = zip::ZipWriter::new(File::create(path.as_ref())?);
-        let options = zip::write::SimpleFileOptions::default()
-            .compression_method(zip::CompressionMethod::Stored);
+        let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
         for (name, tensor) in ts.iter() {
             zip.start_file(format!("{}.npy", name.as_ref()), options)?;
@@ -338,7 +321,11 @@ mod tests {
         let h = "{'descr': '<f8', 'fortran_order': False, 'shape': (128,), }";
         assert_eq!(
             Header::parse(h).unwrap(),
-            Header { descr: crate::ElementType::F64, fortran_order: false, shape: vec![128] }
+            Header {
+                descr: crate::ElementType::F64,
+                fortran_order: false,
+                shape: vec![128]
+            }
         );
         let h = "{'descr': '<f4', 'fortran_order': True, 'shape': (256,1,128), }";
         let h = Header::parse(h).unwrap();
@@ -355,7 +342,11 @@ mod tests {
             "{'descr': '<f4', 'fortran_order': True, 'shape': (256,1,128,), }"
         );
 
-        let h = Header { descr: crate::ElementType::S64, fortran_order: false, shape: vec![] };
+        let h = Header {
+            descr: crate::ElementType::S64,
+            fortran_order: false,
+            shape: vec![],
+        };
         assert_eq!(
             h.to_string().unwrap(),
             "{'descr': '<i8', 'fortran_order': False, 'shape': (), }"

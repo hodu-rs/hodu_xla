@@ -17,10 +17,12 @@ impl PjRtBuffer {
     /// Copy the buffer to a different device.
     pub fn copy_to_device(&self, device: PjRtDevice) -> Result<PjRtBuffer> {
         let mut buffer: c_lib::pjrt_buffer = std::ptr::null_mut();
-        let status =
-            unsafe { c_lib::pjrt_buffer_copy_to_device(self.buffer, device.device, &mut buffer) };
+        let status = unsafe { c_lib::pjrt_buffer_copy_to_device(self.buffer, device.device, &mut buffer) };
         super::handle_status(status)?;
-        Ok(Self { buffer, client: self.client.clone() })
+        Ok(Self {
+            buffer,
+            client: self.client.clone(),
+        })
     }
 
     /// Copy the buffer back to the host as a literal.
@@ -39,11 +41,7 @@ impl PjRtBuffer {
     }
 
     /// Copy the data stored in a buffer to host memory in a blocking way.
-    pub fn copy_raw_to_host_sync<T: ArrayElement>(
-        &self,
-        dst: &mut [T],
-        offset: usize,
-    ) -> Result<()> {
+    pub fn copy_raw_to_host_sync<T: ArrayElement>(&self, dst: &mut [T], offset: usize) -> Result<()> {
         let shape = ArrayShape::try_from(&self.on_device_shape()?)?;
         let on_host = T::TY;
         let on_device = shape.primitive_type().element_type()?;
@@ -51,7 +49,11 @@ impl PjRtBuffer {
             Err(Error::ElementTypeMismatch { on_device, on_host })?
         }
         if offset + dst.len() > shape.element_count() {
-            Err(Error::TargetBufferIsTooLarge { offset, shape, buffer_len: dst.len() })?
+            Err(Error::TargetBufferIsTooLarge {
+                offset,
+                shape,
+                buffer_len: dst.len(),
+            })?
         }
         let status = unsafe {
             c_lib::pjrt_buffer_copy_raw_to_host_sync(

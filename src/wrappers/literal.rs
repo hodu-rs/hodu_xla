@@ -1,6 +1,4 @@
-use super::{
-    ArrayElement, ArrayShape, ElementType, FromPrimitive, NativeType, PrimitiveType, Shape,
-};
+use super::{ArrayElement, ArrayShape, ElementType, FromPrimitive, NativeType, PrimitiveType, Shape};
 use crate::{c_lib, Error, Result};
 
 /// A literal represent a value, typically a multi-dimensional array, stored on the host device.
@@ -24,11 +22,7 @@ impl Literal {
     /// Create an unitialized literal based on some primitive type, some dimensions, and some data.
     /// The data is untyped, i.e. it is a sequence of bytes represented as a slice of `u8` even if
     /// the primitive type is not `U8`.
-    pub fn create_from_shape_and_untyped_data(
-        ty: ElementType,
-        dims: &[usize],
-        untyped_data: &[u8],
-    ) -> Result<Self> {
+    pub fn create_from_shape_and_untyped_data(ty: ElementType, dims: &[usize], untyped_data: &[u8]) -> Result<Self> {
         let dims64: Vec<_> = dims.iter().map(|x| *x as i64).collect();
         let ty = ty.primitive_type();
         let v = unsafe {
@@ -55,7 +49,10 @@ impl Literal {
     pub fn get_first_element<T: NativeType + ArrayElement>(&self) -> Result<T> {
         let ty = self.ty()?;
         if ty != T::TY {
-            Err(Error::ElementTypeMismatch { on_device: ty, on_host: T::TY })?
+            Err(Error::ElementTypeMismatch {
+                on_device: ty,
+                on_host: T::TY,
+            })?
         }
         if self.element_count() == 0 {
             Err(Error::EmptyLiteral)?
@@ -113,10 +110,16 @@ impl Literal {
         let ty = self.ty()?;
         let element_count = self.element_count();
         if ty != T::TY {
-            Err(Error::ElementTypeMismatch { on_device: ty, on_host: T::TY })?
+            Err(Error::ElementTypeMismatch {
+                on_device: ty,
+                on_host: T::TY,
+            })?
         }
         if dst.len() > element_count {
-            Err(Error::BinaryBufferIsTooLarge { element_count, buffer_len: dst.len() })?
+            Err(Error::BinaryBufferIsTooLarge {
+                element_count,
+                buffer_len: dst.len(),
+            })?
         }
         unsafe {
             c_lib::literal_copy_to(
@@ -135,10 +138,16 @@ impl Literal {
         let ty = self.ty()?;
         let element_count = self.element_count();
         if ty != T::TY {
-            Err(Error::ElementTypeMismatch { on_device: ty, on_host: T::TY })?
+            Err(Error::ElementTypeMismatch {
+                on_device: ty,
+                on_host: T::TY,
+            })?
         }
         if src.len() > element_count {
-            Err(Error::BinaryBufferIsTooLarge { element_count, buffer_len: src.len() })?
+            Err(Error::BinaryBufferIsTooLarge {
+                element_count,
+                buffer_len: src.len(),
+            })?
         }
         unsafe {
             c_lib::literal_copy_from(
@@ -179,8 +188,7 @@ impl Literal {
     /// dimension sizes.
     pub fn reshape(&self, dims: &[i64]) -> Result<Literal> {
         let mut result: c_lib::literal = std::ptr::null_mut();
-        let status =
-            unsafe { c_lib::literal_reshape(self.0, dims.as_ptr(), dims.len(), &mut result) };
+        let status = unsafe { c_lib::literal_reshape(self.0, dims.as_ptr(), dims.len(), &mut result) };
         super::handle_status(status)?;
         Ok(Literal(result))
     }
@@ -205,7 +213,7 @@ impl Literal {
                 let mut outputs = vec![std::ptr::null_mut::<c_lib::_literal>(); tuple_len];
                 unsafe { c_lib::literal_decompose_tuple(self.0, outputs.as_mut_ptr(), tuple_len) };
                 Ok(outputs.into_iter().map(Literal).collect())
-            }
+            },
         }
     }
 
@@ -216,7 +224,10 @@ impl Literal {
     pub fn to_tuple1(mut self) -> Result<Self> {
         let mut tuple = self.decompose_tuple()?;
         if tuple.len() != 1 {
-            Err(Error::UnexpectedNumberOfElemsInTuple { expected: 1, got: tuple.len() })?
+            Err(Error::UnexpectedNumberOfElemsInTuple {
+                expected: 1,
+                got: tuple.len(),
+            })?
         }
         let v1 = tuple.pop().unwrap();
         Ok(v1)
@@ -225,7 +236,10 @@ impl Literal {
     pub fn to_tuple2(mut self) -> Result<(Self, Self)> {
         let mut tuple = self.decompose_tuple()?;
         if tuple.len() != 2 {
-            Err(Error::UnexpectedNumberOfElemsInTuple { expected: 2, got: tuple.len() })?
+            Err(Error::UnexpectedNumberOfElemsInTuple {
+                expected: 2,
+                got: tuple.len(),
+            })?
         }
         let v2 = tuple.pop().unwrap();
         let v1 = tuple.pop().unwrap();
@@ -235,7 +249,10 @@ impl Literal {
     pub fn to_tuple3(mut self) -> Result<(Self, Self, Self)> {
         let mut tuple = self.decompose_tuple()?;
         if tuple.len() != 3 {
-            Err(Error::UnexpectedNumberOfElemsInTuple { expected: 3, got: tuple.len() })?
+            Err(Error::UnexpectedNumberOfElemsInTuple {
+                expected: 3,
+                got: tuple.len(),
+            })?
         }
         let v3 = tuple.pop().unwrap();
         let v2 = tuple.pop().unwrap();
@@ -246,7 +263,10 @@ impl Literal {
     pub fn to_tuple4(mut self) -> Result<(Self, Self, Self, Self)> {
         let mut tuple = self.decompose_tuple()?;
         if tuple.len() != 4 {
-            Err(Error::UnexpectedNumberOfElemsInTuple { expected: 4, got: tuple.len() })?
+            Err(Error::UnexpectedNumberOfElemsInTuple {
+                expected: 4,
+                got: tuple.len(),
+            })?
         }
         let v4 = tuple.pop().unwrap();
         let v3 = tuple.pop().unwrap();
@@ -257,8 +277,7 @@ impl Literal {
 
     pub fn tuple(elems: Vec<Self>) -> Self {
         let elem_ptrs: Vec<_> = elems.iter().map(|e| e.0).collect();
-        let literal =
-            unsafe { c_lib::literal_make_tuple_owned(elem_ptrs.as_ptr(), elem_ptrs.len()) };
+        let literal = unsafe { c_lib::literal_make_tuple_owned(elem_ptrs.as_ptr(), elem_ptrs.len()) };
         // Ensure that elems are only dropped after the pointers have been used.
         drop(elems);
         Self(literal)

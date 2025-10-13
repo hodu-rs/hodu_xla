@@ -1,10 +1,10 @@
 [package]
-name = "xla"
+name = "hodu_xla"
 version = "0.3.0"
-authors = ["laurent <laurent.mazare@gmail.com>"]
+authors = ["laurent <laurent.mazare@gmail.com>", "Han Damin <miniex@daminstudio.net>"]
 edition = "2021"
 description = "Bindings for the XLA C++ library."
-repository = "https://github.com/LaurentMazare/xla-rs"
+repository = "https://github.com/hodu-rs/hodu_xla"
 keywords = ["blas", "tensor", "machine-learning"]
 categories = ["science"]
 license = "MIT/Apache-2.0"

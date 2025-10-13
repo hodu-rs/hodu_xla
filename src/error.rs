@@ -96,82 +96,97 @@ impl std::fmt::Display for Error {
         match self {
             Error::WrongElementCount { dims, element_count } => {
                 write!(f, "wrong element count {} for dims {:?}", element_count, dims)
-            }
+            },
             Error::XlaError { msg, backtrace } => {
                 write!(f, "xla error {}\n{}", msg, backtrace)
-            }
+            },
             Error::UnexpectedElementType(ty) => {
                 write!(f, "unexpected element type {}", ty)
-            }
+            },
             Error::UnexpectedNumberOfDims { expected, got, dims } => {
                 write!(
                     f,
                     "unexpected number of dimensions, expected: {}, got: {} ({:?})",
                     expected, got, dims
                 )
-            }
+            },
             Error::NotAnElementType { got } => {
                 write!(f, "not an element type, got: {:?}", got)
-            }
+            },
             Error::NotAnArray { expected, got } => {
                 write!(f, "not an array, expected: {:?}, got: {:?}", expected, got)
-            }
+            },
             Error::UnsupportedShape { shape } => {
                 write!(f, "cannot handle unsupported shapes {:?}", shape)
-            }
+            },
             Error::UnexpectedNumberOfElemsInTuple { expected, got } => {
                 write!(
                     f,
                     "unexpected number of tuple elements, expected: {}, got: {}",
                     expected, got
                 )
-            }
+            },
             Error::ElementTypeMismatch { on_device, on_host } => {
                 write!(
                     f,
                     "element type mismatch, on-device: {:?}, on-host: {:?}",
                     on_device, on_host
                 )
-            }
+            },
             Error::UnsupportedElementType { ty, op } => {
                 write!(f, "unsupported element type for {}: {:?}", op, ty)
-            }
-            Error::TargetBufferIsTooLarge { offset, shape, buffer_len } => {
+            },
+            Error::TargetBufferIsTooLarge {
+                offset,
+                shape,
+                buffer_len,
+            } => {
                 write!(
                     f,
                     "target buffer is too large, offset {}, shape {:?}, buffer_len: {}",
                     offset, shape, buffer_len
                 )
-            }
-            Error::BinaryBufferIsTooLarge { element_count, buffer_len } => {
+            },
+            Error::BinaryBufferIsTooLarge {
+                element_count,
+                buffer_len,
+            } => {
                 write!(
                     f,
                     "binary buffer is too large, element count {}, buffer_len: {}",
                     element_count, buffer_len
                 )
-            }
+            },
             Error::EmptyLiteral => write!(f, "empty literal"),
             Error::IndexOutOfBounds { index, rank } => {
                 write!(f, "index out of bounds {}, rank {}", index, rank)
-            }
+            },
             Error::Npy(msg) => write!(f, "npy/npz error {}", msg),
             Error::Io(err) => write!(f, "I/O error: {}", err),
             Error::Zip(err) => write!(f, "Zip error: {}", err),
             Error::ParseInt(err) => write!(f, "Parse int error: {}", err),
-            Error::CannotCreateLiteralWithData { data_len_in_bytes, ty, dims } => {
+            Error::CannotCreateLiteralWithData {
+                data_len_in_bytes,
+                ty,
+                dims,
+            } => {
                 write!(
                     f,
                     "cannot create literal with shape {:?} {:?} from bytes data with len {}",
                     ty, dims, data_len_in_bytes
                 )
-            }
-            Error::MatMulIncorrectDims { lhs_dims, rhs_dims, msg } => {
+            },
+            Error::MatMulIncorrectDims {
+                lhs_dims,
+                rhs_dims,
+                msg,
+            } => {
                 write!(
                     f,
                     "invalid dimensions in matmul, lhs: {:?}, rhs: {:?}, {}",
                     lhs_dims, rhs_dims, msg
                 )
-            }
+            },
         }
     }
 }

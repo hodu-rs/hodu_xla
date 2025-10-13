@@ -1,6 +1,4 @@
-use super::{
-    handle_status, FromPrimitive, Literal, NativeType, PrimitiveType, Shape, XlaComputation, XlaOp,
-};
+use super::{handle_status, FromPrimitive, Literal, NativeType, PrimitiveType, Shape, XlaComputation, XlaOp};
 use crate::{c_lib, Error, Result};
 use std::rc::Rc;
 
@@ -67,20 +65,17 @@ impl XlaBuilder {
 
     pub fn wrap(&self, op: c_lib::xla_op) -> Result<XlaOp> {
         self.get_current_status()?;
-        Ok(XlaOp { op, builder: self.clone() })
+        Ok(XlaOp {
+            op,
+            builder: self.clone(),
+        })
     }
 
     /// Create an input node with the specified type and dimensions. A literal has to be passed for
     /// each of the parameter in the graph when calling the `execute` function, the parameter
     /// number are specified as incrementing values from 0 and represent the index of the
     /// associated literal in the slice passed to `execute`.
-    pub fn parameter(
-        &self,
-        parameter_number: i64,
-        ty: super::ElementType,
-        dims: &[i64],
-        name: &str,
-    ) -> Result<XlaOp> {
+    pub fn parameter(&self, parameter_number: i64, ty: super::ElementType, dims: &[i64], name: &str) -> Result<XlaOp> {
         let name = std::ffi::CString::new(name).unwrap();
         let op = unsafe {
             c_lib::parameter(
@@ -98,18 +93,14 @@ impl XlaBuilder {
     /// Read a single value from the implicit streaming interface of the device.
     pub fn infeed(&self, ty: PrimitiveType, dims: &[i64], config: &str) -> Result<XlaOp> {
         let config = std::ffi::CString::new(config).unwrap();
-        let op = unsafe {
-            c_lib::infeed(self.ptr(), ty as i32, dims.len() as i32, dims.as_ptr(), config.as_ptr())
-        };
+        let op = unsafe { c_lib::infeed(self.ptr(), ty as i32, dims.len() as i32, dims.as_ptr(), config.as_ptr()) };
         self.wrap(op)
     }
 
     pub fn parameter_s(&self, parameter_number: i64, shape: &Shape, name: &str) -> Result<XlaOp> {
         let c_shape = shape.c_shape()?;
         let name = std::ffi::CString::new(name).unwrap();
-        let op = unsafe {
-            c_lib::parameter_s(self.ptr(), parameter_number, c_shape.as_ptr(), name.as_ptr())
-        };
+        let op = unsafe { c_lib::parameter_s(self.ptr(), parameter_number, c_shape.as_ptr(), name.as_ptr()) };
         drop(c_shape);
         self.wrap(op)
     }
@@ -179,21 +170,30 @@ impl XlaBuilder {
     pub fn internal_error(&self, msg: &str) -> XlaOp {
         let msg = std::ffi::CString::new(msg).unwrap();
         let op = unsafe { c_lib::op_internal_error(self.ptr(), msg.as_ptr()) };
-        XlaOp { op, builder: self.clone() }
+        XlaOp {
+            op,
+            builder: self.clone(),
+        }
     }
 
     /// An error node, using the 'unknown error' error type.
     pub fn unknown_error(&self, msg: &str) -> XlaOp {
         let msg = std::ffi::CString::new(msg).unwrap();
         let op = unsafe { c_lib::op_unknown_error(self.ptr(), msg.as_ptr()) };
-        XlaOp { op, builder: self.clone() }
+        XlaOp {
+            op,
+            builder: self.clone(),
+        }
     }
 
     /// An error node, using the 'invalid argument error' error type.
     pub fn invalid_argument_error(&self, msg: &str) -> XlaOp {
         let msg = std::ffi::CString::new(msg).unwrap();
         let op = unsafe { c_lib::op_invalid_argument_error(self.ptr(), msg.as_ptr()) };
-        XlaOp { op, builder: self.clone() }
+        XlaOp {
+            op,
+            builder: self.clone(),
+        }
     }
 
     /// Wrap a potential error in an error node. If the argument is `Ok(op)` then `op` is passed

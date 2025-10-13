@@ -20,7 +20,11 @@ macro_rules! extract_dims {
             let dims = self.builder.get_dims(self)?;
             if dims.len() != $cnt {
                 let dims: Vec<_> = dims.iter().map(|d| *d as i64).collect();
-                Err(Error::UnexpectedNumberOfDims { expected: $cnt, got: dims.len(), dims })
+                Err(Error::UnexpectedNumberOfDims {
+                    expected: $cnt,
+                    got: dims.len(),
+                    dims,
+                })
             } else {
                 let dims = $dims(dims);
                 Ok(dims)
@@ -50,14 +54,20 @@ macro_rules! unary_op {
 impl Clone for XlaOp {
     fn clone(&self) -> Self {
         let op = unsafe { c_lib::op_clone(self.op) };
-        Self { op, builder: self.builder.clone() }
+        Self {
+            op,
+            builder: self.builder.clone(),
+        }
     }
 }
 
 impl XlaOp {
     pub(super) fn wrap(&self, op: c_lib::xla_op) -> Result<Self> {
         self.builder.get_current_status()?;
-        Ok(XlaOp { op, builder: self.builder.clone() })
+        Ok(XlaOp {
+            op,
+            builder: self.builder.clone(),
+        })
     }
 
     pub fn builder(&self) -> &XlaBuilder {
@@ -196,13 +206,7 @@ impl XlaOp {
     /// Create a node that has a partial view on the data of the original node. Indexes on the
     /// target dimension `dim` are restricted to the values between `start_index` (inclusive) and
     /// `stop_index` (exclusive), using the associated `stride` as a step between two values.
-    pub fn slice_in_dim(
-        &self,
-        start_index: i64,
-        stop_index: i64,
-        stride: i64,
-        dim: i64,
-    ) -> Result<Self> {
+    pub fn slice_in_dim(&self, start_index: i64, stop_index: i64, stride: i64, dim: i64) -> Result<Self> {
         let dim = self.normalize_index(dim)?;
         let op = unsafe { c_lib::op_slice_in_dim(self.op, start_index, stop_index, stride, dim) };
         self.wrap(op)
@@ -238,11 +242,7 @@ impl XlaOp {
     }
 
     /// Concat multiple nodes (together with the `self` node) along the target dimension.
-    pub fn concat_in_dim<B: std::borrow::Borrow<XlaOp>>(
-        &self,
-        args: &[B],
-        dim: i64,
-    ) -> Result<Self> {
+    pub fn concat_in_dim<B: std::borrow::Borrow<XlaOp>>(&self, args: &[B], dim: i64) -> Result<Self> {
         let dim = self.normalize_index(dim)?;
         let args: Vec<_> = args.iter().map(|a| a.borrow().op).collect();
         let op = unsafe { c_lib::op_concat_in_dim(self.op, args.as_ptr(), args.len(), dim) };
@@ -347,16 +347,9 @@ impl XlaOp {
     /// `true`, the resulting node has a dimension of size one for the target dimensions, when
     /// using `false` these dimensions are squeezed so the resulting node has a rank that is the
     /// original node rank minus the number of elements in `dims`.
-    pub fn reduce(
-        &self,
-        init_value: Self,
-        comp: XlaComputation,
-        dims: &[i64],
-        keep_dims: bool,
-    ) -> Result<Self> {
+    pub fn reduce(&self, init_value: Self, comp: XlaComputation, dims: &[i64], keep_dims: bool) -> Result<Self> {
         let dims = self.normalize_indexes(dims)?;
-        let op =
-            unsafe { c_lib::op_reduce(self.op, init_value.op, comp.0, dims.as_ptr(), dims.len()) };
+        let op = unsafe { c_lib::op_reduce(self.op, init_value.op, comp.0, dims.as_ptr(), dims.len()) };
         let op = self.wrap(op)?;
         self.maybe_keep_dims(op, &dims, keep_dims)
     }
@@ -384,17 +377,13 @@ impl XlaOp {
         false_op: Self,
         false_comp: XlaComputation,
     ) -> Result<Self> {
-        let op = unsafe {
-            c_lib::op_conditional(self.op, true_op.op, true_comp.0, false_op.op, false_comp.0)
-        };
+        let op = unsafe { c_lib::op_conditional(self.op, true_op.op, true_comp.0, false_op.op, false_comp.0) };
         self.wrap(op)
     }
 
     pub fn outfeed(&self, ty: PrimitiveType, dims: &[i64], config: &str) {
         let config = std::ffi::CString::new(config).unwrap();
-        unsafe {
-            c_lib::outfeed(self.op, ty as i32, dims.len() as i32, dims.as_ptr(), config.as_ptr())
-        }
+        unsafe { c_lib::outfeed(self.op, ty as i32, dims.len() as i32, dims.as_ptr(), config.as_ptr()) }
     }
 
     /// The kind of elements that are computed by this operand.
@@ -427,7 +416,12 @@ impl XlaOp {
     extract_dims!(dim1, 1, |d: Vec<usize>| d[0], usize);
     extract_dims!(dim2, 2, |d: Vec<usize>| (d[0], d[1]), (usize, usize));
     extract_dims!(dim3, 3, |d: Vec<usize>| (d[0], d[1], d[2]), (usize, usize, usize));
-    extract_dims!(dim4, 4, |d: Vec<usize>| (d[0], d[1], d[2], d[3]), (usize, usize, usize, usize));
+    extract_dims!(
+        dim4,
+        4,
+        |d: Vec<usize>| (d[0], d[1], d[2], d[3]),
+        (usize, usize, usize, usize)
+    );
     extract_dims!(
         dim5,
         5,
@@ -471,8 +465,10 @@ impl XlaOp {
         set_index_vector_dim: Option<i64>,
         slice_sizes: &[i64],
     ) -> Result<Self> {
-        let set_index_vector_dim_ptr =
-            set_index_vector_dim.as_ref().map(|p| p as *const _).unwrap_or(std::ptr::null());
+        let set_index_vector_dim_ptr = set_index_vector_dim
+            .as_ref()
+            .map(|p| p as *const _)
+            .unwrap_or(std::ptr::null());
         let op = unsafe {
             c_lib::op_gather(
                 self.op,

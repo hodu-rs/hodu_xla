@@ -12,10 +12,7 @@ impl PjRtLoadedExecutable {
         &self.client
     }
 
-    fn process_execute_outputs(
-        &self,
-        outputs: *mut *mut c_lib::pjrt_buffer,
-    ) -> Vec<Vec<PjRtBuffer>> {
+    fn process_execute_outputs(&self, outputs: *mut *mut c_lib::pjrt_buffer) -> Vec<Vec<PjRtBuffer>> {
         unsafe {
             let mut vec = vec![];
             loop {
@@ -29,7 +26,10 @@ impl PjRtLoadedExecutable {
                     if buffer.is_null() {
                         break;
                     }
-                    replica_vec.push(PjRtBuffer { buffer, client: self.client.clone() });
+                    replica_vec.push(PjRtBuffer {
+                        buffer,
+                        client: self.client.clone(),
+                    });
                 }
                 libc::free(outputs as *mut libc::c_void);
                 vec.push(replica_vec);
@@ -39,27 +39,18 @@ impl PjRtLoadedExecutable {
         }
     }
 
-    pub fn execute<L: std::borrow::Borrow<Literal>>(
-        &self,
-        args: &[L],
-    ) -> Result<Vec<Vec<PjRtBuffer>>> {
+    pub fn execute<L: std::borrow::Borrow<Literal>>(&self, args: &[L]) -> Result<Vec<Vec<PjRtBuffer>>> {
         let mut outputs = std::ptr::null_mut();
         let args: Vec<_> = args.iter().map(|x| x.borrow().0).collect();
-        let status =
-            unsafe { c_lib::execute(self.exe, args.as_ptr(), args.len() as i32, &mut outputs) };
+        let status = unsafe { c_lib::execute(self.exe, args.as_ptr(), args.len() as i32, &mut outputs) };
         super::handle_status(status)?;
         Ok(self.process_execute_outputs(outputs))
     }
 
-
-    pub fn execute_b<L: std::borrow::Borrow<PjRtBuffer>>(
-        &self,
-        args: &[L],
-    ) -> Result<Vec<Vec<PjRtBuffer>>> {
+    pub fn execute_b<L: std::borrow::Borrow<PjRtBuffer>>(&self, args: &[L]) -> Result<Vec<Vec<PjRtBuffer>>> {
         let mut outputs = std::ptr::null_mut();
         let args: Vec<_> = args.iter().map(|x| x.borrow().buffer).collect();
-        let status =
-            unsafe { c_lib::execute_b(self.exe, args.as_ptr(), args.len() as i32, &mut outputs) };
+        let status = unsafe { c_lib::execute_b(self.exe, args.as_ptr(), args.len() as i32, &mut outputs) };
         super::handle_status(status)?;
         Ok(self.process_execute_outputs(outputs))
     }

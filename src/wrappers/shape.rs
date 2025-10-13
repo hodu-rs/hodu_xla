@@ -106,13 +106,13 @@ impl Shape {
                 let c_shape = CShape(unsafe { c_lib::make_shape_tuple(ptrs.len(), ptrs.as_ptr()) });
                 drop(shapes);
                 Ok(c_shape)
-            }
+            },
             Self::Array(a) => {
                 let dims = a.dims();
                 Ok(CShape(unsafe {
                     c_lib::make_shape_array(a.primitive_type() as i32, dims.len(), dims.as_ptr())
                 }))
-            }
+            },
             Self::Unsupported(_) => Err(Error::UnsupportedShape { shape: self.clone() }),
         }
     }
@@ -123,9 +123,10 @@ impl TryFrom<&Shape> for ArrayShape {
 
     fn try_from(value: &Shape) -> Result<Self> {
         match value {
-            Shape::Tuple(_) | Shape::Unsupported(_) => {
-                Err(Error::NotAnArray { expected: None, got: value.clone() })
-            }
+            Shape::Tuple(_) | Shape::Unsupported(_) => Err(Error::NotAnArray {
+                expected: None,
+                got: value.clone(),
+            }),
             Shape::Array(a) => Ok(a.clone()),
         }
     }
@@ -155,9 +156,10 @@ macro_rules! extract_dims {
 
             fn try_from(value: &Shape) -> Result<Self> {
                 match value {
-                    Shape::Tuple(_) | Shape::Unsupported(_) => {
-                        Err(Error::NotAnArray { expected: Some($cnt), got: value.clone() })
-                    }
+                    Shape::Tuple(_) | Shape::Unsupported(_) => Err(Error::NotAnArray {
+                        expected: Some($cnt),
+                        got: value.clone(),
+                    }),
                     Shape::Array(a) => Self::try_from(a),
                 }
             }
@@ -169,7 +171,11 @@ extract_dims!(1, |d: &Vec<i64>| d[0], i64);
 extract_dims!(2, |d: &Vec<i64>| (d[0], d[1]), (i64, i64));
 extract_dims!(3, |d: &Vec<i64>| (d[0], d[1], d[2]), (i64, i64, i64));
 extract_dims!(4, |d: &Vec<i64>| (d[0], d[1], d[2], d[3]), (i64, i64, i64, i64));
-extract_dims!(5, |d: &Vec<i64>| (d[0], d[1], d[2], d[3], d[4]), (i64, i64, i64, i64, i64));
+extract_dims!(
+    5,
+    |d: &Vec<i64>| (d[0], d[1], d[2], d[3], d[4]),
+    (i64, i64, i64, i64, i64)
+);
 
 pub(crate) struct CShape(c_lib::shape);
 
@@ -189,14 +195,13 @@ impl CShape {
                         .map(|i| from_ptr_rec(unsafe { c_lib::shape_tuple_shapes(ptr, i as i32) }))
                         .collect();
                     Ok(Shape::Tuple(shapes?))
-                }
+                },
                 ty => match ty.element_type() {
                     Ok(ty) => {
                         let rank = unsafe { c_lib::shape_dimensions_size(ptr) };
-                        let dims: Vec<_> =
-                            (0..rank).map(|i| unsafe { c_lib::shape_dimensions(ptr, i) }).collect();
+                        let dims: Vec<_> = (0..rank).map(|i| unsafe { c_lib::shape_dimensions(ptr, i) }).collect();
                         Ok(Shape::Array(ArrayShape { ty, dims }))
-                    }
+                    },
                     Err(_) => Ok(Shape::Unsupported(ty)),
                 },
             }

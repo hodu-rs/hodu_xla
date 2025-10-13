@@ -9,9 +9,9 @@ mod xla_op;
 
 use crate::c_lib;
 use crate::error::{Error, Result};
+use half::{bf16, f16};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use half::{f16, bf16};
 
 pub use literal::Literal;
 pub use pjrt_buffer::PjRtBuffer;
@@ -71,9 +71,7 @@ impl PrimitiveType {
             Self::F64 => Ok(ElementType::F64),
             Self::C64 => Ok(ElementType::C64),
             Self::C128 => Ok(ElementType::C128),
-            Self::Invalid | Self::Tuple | Self::OpaqueType | Self::Token => {
-                Err(Error::NotAnElementType { got: self })
-            }
+            Self::Invalid | Self::Tuple | Self::OpaqueType | Self::Token => Err(Error::NotAnElementType { got: self }),
         }
     }
 }
@@ -164,11 +162,7 @@ macro_rules! native_type {
             unsafe fn constant_r0(b: c_lib::xla_builder, v: Self) -> c_lib::xla_op {
                 c_lib::$cst0(b, v)
             }
-            unsafe fn constant_r1(
-                b: c_lib::xla_builder,
-                v: *const Self,
-                l: usize,
-            ) -> c_lib::xla_op {
+            unsafe fn constant_r1(b: c_lib::xla_builder, v: *const Self, l: usize) -> c_lib::xla_op {
                 c_lib::$cst1(b, v, l)
             }
             unsafe fn constant_r1c(b: c_lib::xla_builder, v: Self, l: usize) -> c_lib::xla_op {
@@ -456,12 +450,7 @@ impl HloModuleProto {
     pub fn parse_proto(data: &[u8], binary: bool) -> Result<Self> {
         let mut ptr: c_lib::hlo_module_proto = std::ptr::null_mut();
         let status = unsafe {
-            c_lib::hlo_module_proto_parse_proto(
-                data.as_ptr() as *const libc::c_char,
-                data.len(),
-                binary,
-                &mut ptr,
-            )
+            c_lib::hlo_module_proto_parse_proto(data.as_ptr() as *const libc::c_char, data.len(), binary, &mut ptr)
         };
         handle_status(status)?;
         Ok(Self(ptr))

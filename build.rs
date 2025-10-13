@@ -43,7 +43,7 @@ fn make_shared_lib<P: AsRef<Path>>(os: OS, xla_dir: P) {
                 .flag("-DLLVM_VERSION_STRING=")
                 .file("xla_rs/xla_rs.cc")
                 .compile("xla_rs");
-        }
+        },
         OS::Windows => {
             cc::Build::new()
                 .cpp(true)
@@ -52,7 +52,7 @@ fn make_shared_lib<P: AsRef<Path>>(os: OS, xla_dir: P) {
                 .include(xla_dir.as_ref().join("include"))
                 .file("xla_rs/xla_rs.cc")
                 .compile("xla_rs");
-        }
+        },
     };
 }
 
@@ -78,7 +78,9 @@ fn main() {
         .generate()
         .expect("Unable to generate bindings");
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-    bindings.write_to_file(out_path.join("c_xla.rs")).expect("Couldn't write bindings!");
+    bindings
+        .write_to_file(out_path.join("c_xla.rs"))
+        .expect("Couldn't write bindings!");
 
     // Exit early on docs.rs as the C++ library would not be available.
     if std::env::var("DOCS_RS").is_ok() {
