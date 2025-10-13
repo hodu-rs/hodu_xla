@@ -91,12 +91,6 @@ echo "Creating extension symlink: $extension_link -> $build_dir"
 rm -f "$extension_link"
 ln -s "$build_dir" "$extension_link"
 
-# Apply patches
-echo "Applying patches..."
-cp -r patches "$xla_dir/"
-cd "$xla_dir"
-bash patches/apply.sh
-
 # Build
 echo "Building with Bazel..."
 echo "Bazel flags: $BAZEL_FLAGS"
