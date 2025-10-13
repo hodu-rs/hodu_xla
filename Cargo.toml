@@ -12,7 +12,6 @@ readme = "README.md"
 
 [features]
 default = []
-cuda = []
 
 [dependencies]
 libc = "0.2"

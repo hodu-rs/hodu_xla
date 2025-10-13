@@ -48,14 +48,6 @@ impl OS {
             OS::Windows => "install.ps1",
         }
     }
-
-    pub fn cuda_script_name(&self) -> Option<&'static str> {
-        match self {
-            OS::Linux => Some("install-linux-cuda.sh"),
-            OS::MacOS => None, // macOS doesn't support CUDA
-            OS::Windows => Some("install-windows-cuda.ps1"),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -67,8 +59,6 @@ pub enum Arch {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Target {
     Cpu,
-    #[cfg(feature = "cuda")]
-    Cuda,
 }
 
 impl Arch {
@@ -92,8 +82,6 @@ impl Target {
     pub fn name(&self) -> &'static str {
         match self {
             Target::Cpu => "cpu",
-            #[cfg(feature = "cuda")]
-            Target::Cuda => "cuda",
         }
     }
 }
@@ -134,11 +122,6 @@ impl XlaInstaller {
     pub fn with_target(mut self, target: Target) -> Self {
         self.target = target;
         self
-    }
-
-    #[cfg(feature = "cuda")]
-    pub fn cuda() -> Result<Self, String> {
-        Ok(Self::new()?.with_target(Target::Cuda))
     }
 
     pub fn with_xla_version(xla_version: String) -> Result<Self, String> {
@@ -237,15 +220,7 @@ impl XlaInstaller {
             .map_err(|_| "Cannot get current directory")?
             .join("scripts");
 
-        let script_name = match self.target {
-            #[cfg(feature = "cuda")]
-            Target::Cuda => match self.os.cuda_script_name() {
-                Some(name) => name,
-                None => return Err(format!("CUDA is not supported on {}", self.os.platform_name())),
-            },
-            Target::Cpu => self.os.script_name(),
-        };
-
+        let script_name = self.os.script_name();
         let script_path = script_dir.join(script_name);
 
         if !script_path.exists() {
@@ -543,17 +518,6 @@ pub fn ensure_xla_installation_with_version(version: String) -> Result<PathBuf, 
     installer.validate_installation()?;
     installer.setup_build_env()?;
 
-    Ok(installer.install_dir().to_path_buf())
-}
-
-/// Convenience function for CUDA installation
-#[cfg(feature = "cuda")]
-pub fn ensure_cuda_installation() -> Result<PathBuf, String> {
-    let installer = XlaInstaller::cuda()?;
-    println!("cargo:warning=Installing XLA with CUDA support");
-    installer.install_if_needed()?;
-    installer.validate_installation()?;
-    installer.setup_build_env()?;
     Ok(installer.install_dir().to_path_buf())
 }
 

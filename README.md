@@ -1,4 +1,4 @@
-# xla-rs
+# hodu_xla
 
 Experimentation using the xla compiler from rust
 
@@ -23,19 +23,3 @@ For manual installation, use the provided scripts:
 ./scripts/install.sh    # Unix/Linux/macOS
 ./scripts/install.ps1   # Windows PowerShell
 ```
-
-### CUDA Version
-```bash
-./scripts/install-linux-cuda.sh    # Linux with CUDA
-./scripts/install-windows-cuda.ps1 # Windows with CUDA
-```
-
-## CUDA Support
-
-To enable CUDA support, use the `cuda` feature:
-
-```bash
-cargo build --features cuda
-```
-
-This will automatically download and install CUDA-enabled XLA binaries on supported platforms (Linux and Windows). macOS does not support CUDA.

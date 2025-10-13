@@ -24,8 +24,8 @@ impl OS {
 }
 
 fn make_shared_lib<P: AsRef<Path>>(os: OS, xla_dir: P) {
-    println!("cargo:rerun-if-changed=xla_rs/xla_rs.cc");
-    println!("cargo:rerun-if-changed=xla_rs/xla_rs.h");
+    println!("cargo:rerun-if-changed=c/xla.cc");
+    println!("cargo:rerun-if-changed=c/xla.h");
     match os {
         OS::Linux | OS::MacOS => {
             cc::Build::new()
@@ -41,8 +41,8 @@ fn make_shared_lib<P: AsRef<Path>>(os: OS, xla_dir: P) {
                 .flag("-w")
                 .flag("-DLLVM_ON_UNIX=1")
                 .flag("-DLLVM_VERSION_STRING=")
-                .file("xla_rs/xla_rs.cc")
-                .compile("xla_rs");
+                .file("c/xla.cc")
+                .compile("xla");
         },
         OS::Windows => {
             cc::Build::new()
@@ -50,8 +50,8 @@ fn make_shared_lib<P: AsRef<Path>>(os: OS, xla_dir: P) {
                 .pic(true)
                 .warnings(false)
                 .include(xla_dir.as_ref().join("include"))
-                .file("xla_rs/xla_rs.cc")
-                .compile("xla_rs");
+                .file("c/xla.cc")
+                .compile("xla");
         },
     };
 }
@@ -64,15 +64,19 @@ use build_helper::ensure_xla_installation;
 fn main() {
     let os = OS::get();
 
-    // Automatically install XLA extension using build_helper
-    let xla_dir = ensure_xla_installation().expect("Failed to install XLA extension");
+    // Check if XLA_EXTENSION_DIR is set, otherwise install XLA extension
+    let xla_dir = if let Ok(dir) = env::var("XLA_EXTENSION_DIR") {
+        PathBuf::from(dir)
+    } else {
+        ensure_xla_installation().expect("Failed to install XLA extension")
+    };
 
     // Using XLA extension silently
 
-    println!("cargo:rerun-if-changed=xla_rs/xla_rs.h");
-    println!("cargo:rerun-if-changed=xla_rs/xla_rs.cc");
+    println!("cargo:rerun-if-changed=c/xla.h");
+    println!("cargo:rerun-if-changed=c/xla.cc");
     let bindings = bindgen::Builder::default()
-        .header("xla_rs/xla_rs.h")
+        .header("c/xla.h")
         .clang_arg(format!("-I{}", xla_dir.join("include").display()))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()
@@ -95,7 +99,7 @@ fn main() {
         println!("cargo:rustc-link-arg=-Wl,-lstdc++");
     }
     println!("cargo:rustc-link-search=native={}", xla_dir.join("lib").display());
-    println!("cargo:rustc-link-lib=static=xla_rs");
+    println!("cargo:rustc-link-lib=static=xla");
 
     let lib_path = xla_dir.join("lib");
 
