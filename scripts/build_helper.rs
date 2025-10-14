@@ -29,9 +29,9 @@ impl OS {
 
     pub fn platform_name(&self) -> &'static str {
         match self {
-            OS::Linux => "linux-gnu",
-            OS::MacOS => "darwin",
-            OS::Windows => "windows",
+            OS::Linux => "unknown-linux-gnu",
+            OS::MacOS => "apple-darwin",
+            OS::Windows => "pc-windows-msvc",
         }
     }
 
@@ -88,9 +88,7 @@ impl Target {
 
 /// Configuration for XLA extension installation
 pub struct XlaInstaller {
-    /// XLA extension version (e.g., "0.9.1")
-    xla_version: String,
-    /// xla-rs library version for GitHub releases
+    /// Library version for GitHub releases
     library_version: String,
     install_dir: PathBuf,
     os: OS,
@@ -101,15 +99,17 @@ pub struct XlaInstaller {
 
 impl XlaInstaller {
     pub fn new() -> Result<Self, String> {
-        let xla_version = env::var("XLA_VERSION").unwrap_or_else(|_| "elixirnxxla0.9.1".to_string());
-        let library_version = env!("CARGO_PKG_VERSION").to_string();
+        let library_version = env::var("LIB_VERSION")
+            .unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_string());
         let install_dir = Self::get_install_dir();
         let os = OS::detect()?;
         let arch = Arch::detect()?;
         let target = Target::Cpu; // Default to CPU
 
+        // Validate platform support
+        Self::validate_platform_support(os, arch)?;
+
         Ok(Self {
-            xla_version,
             library_version,
             install_dir,
             os,
@@ -119,15 +119,41 @@ impl XlaInstaller {
         })
     }
 
+    /// Validate that the current platform is supported
+    fn validate_platform_support(os: OS, arch: Arch) -> Result<(), String> {
+        let supported = match (os, arch) {
+            // Supported platforms
+            (OS::Linux, Arch::X86_64) => true,        // x86_64-unknown-linux-gnu
+            (OS::Linux, Arch::Aarch64) => true,       // aarch64-unknown-linux-gnu
+            (OS::MacOS, Arch::Aarch64) => true,       // aarch64-apple-darwin
+
+            // Unsupported platforms
+            (OS::MacOS, Arch::X86_64) => false,       // x86_64-apple-darwin
+            (OS::Windows, _) => false,                 // All Windows platforms
+        };
+
+        if !supported {
+            let platform_name = format!("{}-{}", arch.name(), os.platform_name());
+            return Err(format!(
+                "Unsupported platform: {}\n\
+                 \n\
+                 Supported platforms:\n\
+                 - x86_64-unknown-linux-gnu (Linux x86_64)\n\
+                 - aarch64-unknown-linux-gnu (Linux ARM64)\n\
+                 - aarch64-apple-darwin (macOS Apple Silicon)\n\
+                 \n\
+                 Your platform ({}) is not currently supported.\n\
+                 Please check https://github.com/hodu-rs/hodu_xla for updates.",
+                platform_name, platform_name
+            ));
+        }
+
+        Ok(())
+    }
+
     pub fn with_target(mut self, target: Target) -> Self {
         self.target = target;
         self
-    }
-
-    pub fn with_xla_version(xla_version: String) -> Result<Self, String> {
-        let mut installer = Self::new()?;
-        installer.xla_version = xla_version;
-        Ok(installer)
     }
 
     pub fn with_library_version(library_version: String) -> Result<Self, String> {
@@ -146,31 +172,49 @@ impl XlaInstaller {
         self
     }
 
+    fn get_base_dir() -> PathBuf {
+        // Base directory for all XLA extensions
+        let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        PathBuf::from(home).join(".hodu").join("hodu_xla").join("extensions")
+    }
+
     fn get_install_dir() -> PathBuf {
+        // This is just a placeholder, actual path is determined by get_version_dir()
+        Self::get_base_dir()
+    }
+
+    /// Get the version-specific installation directory
+    fn get_version_dir(&self) -> PathBuf {
         if let Ok(dir) = env::var("XLA_EXTENSION_DIR") {
             PathBuf::from(dir)
         } else {
-            // Use $HOME/.hodu/xla-rs/ as the default installation directory
-            let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
-            PathBuf::from(home).join(".hodu").join("xla-rs").join("xla_extension")
+            let dirname = format!(
+                "xla_extension-{}-{}-{}-cpu",
+                self.library_version,
+                self.arch.name(),
+                self.os.platform_name()
+            );
+            Self::get_base_dir().join(dirname)
         }
     }
 
-    pub fn install_dir(&self) -> &Path {
-        &self.install_dir
+    pub fn install_dir(&self) -> PathBuf {
+        self.get_version_dir()
     }
 
     /// Check if XLA extension is properly installed
     pub fn is_installed(&self) -> bool {
-        let lib_dir = self.install_dir.join("lib");
-        let include_dir = self.install_dir.join("include");
+        let version_dir = self.get_version_dir();
+        let lib_dir = version_dir.join("lib");
+        let include_dir = version_dir.join("include");
         let pjrt_header = include_dir.join("xla").join("pjrt").join("c").join("pjrt_c_api.h");
 
         lib_dir.exists() && include_dir.exists() && pjrt_header.exists() && self.has_library_files()
     }
 
     fn has_library_files(&self) -> bool {
-        let lib_dir = self.install_dir.join("lib");
+        let version_dir = self.get_version_dir();
+        let lib_dir = version_dir.join("lib");
         if !lib_dir.exists() {
             return false;
         }
@@ -203,8 +247,10 @@ impl XlaInstaller {
 
     /// Install XLA extension
     pub fn install(&self) -> Result<(), String> {
-        // Create installation directory
-        fs::create_dir_all(&self.install_dir).map_err(|e| format!("Failed to create install directory: {}", e))?;
+        let version_dir = self.get_version_dir();
+
+        // Create version-specific installation directory
+        fs::create_dir_all(&version_dir).map_err(|e| format!("Failed to create install directory: {}", e))?;
 
         // Try script-based installation first
         if let Ok(()) = self.try_script_installation() {
@@ -242,9 +288,8 @@ impl XlaInstaller {
             },
         };
 
-        cmd.env("XLA_VERSION", &self.xla_version);
         cmd.env("LIB_VERSION", &self.library_version);
-        cmd.env("XLA_EXTENSION_DIR", &self.install_dir);
+        cmd.env("XLA_EXTENSION_DIR", &self.get_version_dir());
 
         let output = cmd
             .output()
@@ -269,7 +314,11 @@ impl XlaInstaller {
     fn manual_install(&self) -> Result<(), String> {
         let filename = self.get_archive_filename();
         let download_url = self.get_download_url(&filename);
-        let archive_path = self.install_dir.join(&filename);
+        let base_dir = Self::get_base_dir();
+        let archive_path = base_dir.join(&filename);
+
+        // Create base directory for downloads
+        fs::create_dir_all(&base_dir).map_err(|e| format!("Failed to create base directory: {}", e))?;
 
         // Download if not already present
         if !archive_path.exists() {
@@ -290,7 +339,7 @@ impl XlaInstaller {
     fn get_archive_filename(&self) -> String {
         format!(
             "xla_extension-{}-{}-{}-cpu.{}",
-            self.xla_version,
+            self.library_version,
             self.arch.name(),
             self.os.platform_name(),
             self.os.file_extension()
@@ -299,7 +348,7 @@ impl XlaInstaller {
 
     fn get_download_url(&self, filename: &str) -> String {
         format!(
-            "https://github.com/hodu-rs/xla-rs/releases/download/{}/{}",
+            "https://github.com/hodu-rs/hodu_xla/releases/download/v{}/{}",
             self.library_version, filename
         )
     }
@@ -334,10 +383,11 @@ impl XlaInstaller {
 
     fn extract_archive(&self, archive_path: &Path) -> Result<(), String> {
         // Extracting archive silently
+        let version_dir = self.get_version_dir();
 
         // Clean up existing installation
-        let lib_dir = self.install_dir.join("lib");
-        let include_dir = self.install_dir.join("include");
+        let lib_dir = version_dir.join("lib");
+        let include_dir = version_dir.join("include");
         if lib_dir.exists() {
             let _ = fs::remove_dir_all(&lib_dir);
         }
@@ -349,7 +399,7 @@ impl XlaInstaller {
             OS::Linux | OS::MacOS => {
                 let status = Command::new("tar")
                     .args(["-xzf", archive_path.to_str().unwrap()])
-                    .current_dir(&self.install_dir)
+                    .current_dir(&version_dir)
                     .status()
                     .map_err(|e| format!("Failed to run tar: {}", e))?;
 
@@ -358,7 +408,7 @@ impl XlaInstaller {
                 }
 
                 // Handle subdirectory structure (move from xla_extension/ to current dir)
-                let extracted_subdir = self.install_dir.join("xla_extension");
+                let extracted_subdir = version_dir.join("xla_extension");
                 if extracted_subdir.exists() {
                     let lib_src = extracted_subdir.join("lib");
                     let include_src = extracted_subdir.join("include");
@@ -385,8 +435,9 @@ impl XlaInstaller {
             return Err("XLA extension not installed. Run install_if_needed() first.".to_string());
         }
 
-        let lib_dir = self.install_dir.join("lib");
-        let include_dir = self.install_dir.join("include");
+        let version_dir = self.get_version_dir();
+        let lib_dir = version_dir.join("lib");
+        let include_dir = version_dir.join("include");
 
         // Add library search path
         println!("cargo:rustc-link-search=native={}", lib_dir.display());
@@ -422,8 +473,9 @@ impl XlaInstaller {
             return Err("XLA extension is not properly installed".to_string());
         }
 
-        let lib_dir = self.install_dir.join("lib");
-        let include_dir = self.install_dir.join("include");
+        let version_dir = self.get_version_dir();
+        let lib_dir = version_dir.join("lib");
+        let include_dir = version_dir.join("include");
 
         // Check library files
         if let Ok(entries) = fs::read_dir(&lib_dir) {
@@ -456,9 +508,8 @@ impl XlaInstaller {
     /// Get installation info for debugging
     pub fn get_info(&self) -> InstallationInfo {
         InstallationInfo {
-            version: self.xla_version.clone(),
             library_version: self.library_version.clone(),
-            install_dir: self.install_dir.clone(),
+            install_dir: self.get_version_dir(),
             os: self.os,
             arch: self.arch,
             is_installed: self.is_installed(),
@@ -474,7 +525,6 @@ impl Default for XlaInstaller {
 
 #[derive(Debug)]
 pub struct InstallationInfo {
-    pub version: String,
     pub library_version: String,
     pub install_dir: PathBuf,
     pub os: OS,
@@ -487,7 +537,7 @@ impl std::fmt::Display for InstallationInfo {
         write!(
             f,
             "XLA Extension Info:\n  Version: {}\n  Install Dir: {}\n  OS: {:?}\n  Arch: {:?}\n  Installed: {}",
-            self.version,
+            self.library_version,
             self.install_dir.display(),
             self.os,
             self.arch,
@@ -505,12 +555,12 @@ pub fn ensure_xla_installation() -> Result<PathBuf, String> {
     installer.validate_installation()?;
     installer.setup_build_env()?;
 
-    Ok(installer.install_dir().to_path_buf())
+    Ok(installer.install_dir())
 }
 
 /// Convenience function with custom version
 pub fn ensure_xla_installation_with_version(version: String) -> Result<PathBuf, String> {
-    let installer = XlaInstaller::with_xla_version(version)?;
+    let installer = XlaInstaller::with_library_version(version)?;
 
     println!("cargo:warning={}", installer.get_info());
 
@@ -518,16 +568,16 @@ pub fn ensure_xla_installation_with_version(version: String) -> Result<PathBuf, 
     installer.validate_installation()?;
     installer.setup_build_env()?;
 
-    Ok(installer.install_dir().to_path_buf())
+    Ok(installer.install_dir())
 }
 
 /// Clean up XLA installation (for testing or troubleshooting)
 pub fn clean_xla_installation() -> Result<(), String> {
     let installer = XlaInstaller::new()?;
-    let install_dir = installer.install_dir();
+    let version_dir = installer.install_dir();
 
-    if install_dir.exists() {
-        fs::remove_dir_all(install_dir).map_err(|e| format!("Failed to remove installation directory: {}", e))?;
+    if version_dir.exists() {
+        fs::remove_dir_all(&version_dir).map_err(|e| format!("Failed to remove installation directory: {}", e))?;
         println!("cargo:warning=XLA installation cleaned successfully");
     } else {
         println!("cargo:warning=No XLA installation found to clean");
