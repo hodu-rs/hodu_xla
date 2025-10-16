@@ -506,6 +506,76 @@ impl XlaOp {
         self.gather(&indices, &offset_dims, &[axis], &[axis], index_vector_dim, &slice_sizes)
     }
 
+    /// Scatter operation that updates elements at specified indices.
+    ///
+    /// See the [XLA documentation](https://www.tensorflow.org/xla/operation_semantics#scatter).
+    pub fn scatter(
+        &self,
+        scatter_indices: &XlaOp,
+        updates: &XlaOp,
+        update_computation: XlaComputation,
+        update_window_dims: &[i64],
+        inserted_window_dims: &[i64],
+        scatter_dims_to_operand_dims: &[i64],
+        set_index_vector_dim: Option<i64>,
+        indices_are_sorted: bool,
+        unique_indices: bool,
+    ) -> Result<Self> {
+        let set_index_vector_dim_ptr = set_index_vector_dim
+            .as_ref()
+            .map(|p| p as *const _)
+            .unwrap_or(std::ptr::null());
+        let op = unsafe {
+            c_lib::op_scatter(
+                self.op,
+                scatter_indices.op,
+                updates.op,
+                update_computation.0,
+                update_window_dims.as_ptr(),
+                update_window_dims.len(),
+                inserted_window_dims.as_ptr(),
+                inserted_window_dims.len(),
+                scatter_dims_to_operand_dims.as_ptr(),
+                scatter_dims_to_operand_dims.len(),
+                set_index_vector_dim_ptr,
+                indices_are_sorted,
+                unique_indices,
+            )
+        };
+        self.wrap(op)
+    }
+
+    /// SelectAndScatter operation that selects values in windows and scatters updates.
+    ///
+    /// See the [XLA documentation](https://www.tensorflow.org/xla/operation_semantics#selectandscatter).
+    pub fn select_and_scatter(
+        &self,
+        select: XlaComputation,
+        window_dimensions: &[i64],
+        window_strides: &[i64],
+        padding: &[(i64, i64)],
+        source: &XlaOp,
+        init_value: &XlaOp,
+        scatter: XlaComputation,
+    ) -> Result<Self> {
+        let padding_flat: Vec<i64> = padding.iter().flat_map(|(a, b)| vec![*a, *b]).collect();
+        let op = unsafe {
+            c_lib::op_select_and_scatter(
+                self.op,
+                select.0,
+                window_dimensions.as_ptr(),
+                window_dimensions.len(),
+                window_strides.as_ptr(),
+                window_strides.len(),
+                padding_flat.as_ptr(),
+                source.op,
+                init_value.op,
+                scatter.0,
+            )
+        };
+        self.wrap(op)
+    }
+
     fn maybe_keep_dims(&self, res: XlaOp, dims_to_keep: &[i64], keep_dims: bool) -> Result<XlaOp> {
         if keep_dims && !dims_to_keep.is_empty() {
             let shape = self.array_shape()?;

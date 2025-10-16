@@ -728,6 +728,52 @@ xla_op op_gather(const xla_op arg1, const xla_op arg2,
   END_PROTECT_OP(arg1)
 }
 
+xla_op op_scatter(const xla_op input, const xla_op scatter_indices,
+                  const xla_op updates, const xla_computation update_computation,
+                  const int64_t *update_window_dims, size_t nupdate_window_dims,
+                  const int64_t *inserted_window_dims, size_t ninserted_window_dims,
+                  const int64_t *scatter_dims_to_operand_dims,
+                  size_t nscatter_dims_to_operand_dims,
+                  const int64_t *set_index_vector_dim, bool indices_are_sorted,
+                  bool unique_indices) {
+  BEGIN_PROTECT_OP
+  ScatterDimensionNumbers dn;
+  for (size_t i = 0; i < nupdate_window_dims; ++i) {
+    dn.add_update_window_dims(update_window_dims[i]);
+  }
+  for (size_t i = 0; i < ninserted_window_dims; ++i) {
+    dn.add_inserted_window_dims(inserted_window_dims[i]);
+  }
+  for (size_t i = 0; i < nscatter_dims_to_operand_dims; ++i) {
+    dn.add_scatter_dims_to_operand_dims(scatter_dims_to_operand_dims[i]);
+  }
+  if (set_index_vector_dim) {
+    dn.set_index_vector_dim(*set_index_vector_dim);
+  }
+  return new XlaOp(Scatter(*input, *scatter_indices, *updates,
+                           *update_computation, dn, indices_are_sorted,
+                           unique_indices));
+  END_PROTECT_OP(input)
+}
+
+xla_op op_select_and_scatter(const xla_op operand, const xla_computation select,
+                             const int64_t *window_dimensions,
+                             size_t nwindow_dimensions, const int64_t *window_strides,
+                             size_t nwindow_strides, const int64_t *padding,
+                             const xla_op source, const xla_op init_value,
+                             const xla_computation scatter) {
+  BEGIN_PROTECT_OP
+  std::vector<std::pair<int64_t, int64_t>> padding_pairs;
+  for (size_t i = 0; i < nwindow_dimensions; ++i) {
+    padding_pairs.push_back({padding[i * 2], padding[i * 2 + 1]});
+  }
+  return new XlaOp(SelectAndScatterWithGeneralPadding(
+      *operand, *select, absl::Span<const int64_t>(window_dimensions, nwindow_dimensions),
+      absl::Span<const int64_t>(window_strides, nwindow_strides), padding_pairs, *source,
+      *init_value, *scatter));
+  END_PROTECT_OP(operand)
+}
+
 xla_op op_convert_element_type(const xla_op arg, int pr_type) {
   BEGIN_PROTECT_OP
   return new XlaOp(ConvertElementType(*arg, (PrimitiveType)pr_type));

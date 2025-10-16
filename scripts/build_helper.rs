@@ -99,8 +99,7 @@ pub struct XlaInstaller {
 
 impl XlaInstaller {
     pub fn new() -> Result<Self, String> {
-        let library_version = env::var("LIB_VERSION")
-            .unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_string());
+        let library_version = env::var("LIB_VERSION").unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_string());
         let install_dir = Self::get_install_dir();
         let os = OS::detect()?;
         let arch = Arch::detect()?;
@@ -123,13 +122,13 @@ impl XlaInstaller {
     fn validate_platform_support(os: OS, arch: Arch) -> Result<(), String> {
         let supported = match (os, arch) {
             // Supported platforms
-            (OS::Linux, Arch::X86_64) => true,        // x86_64-unknown-linux-gnu
-            (OS::Linux, Arch::Aarch64) => true,       // aarch64-unknown-linux-gnu
-            (OS::MacOS, Arch::Aarch64) => true,       // aarch64-apple-darwin
+            (OS::Linux, Arch::X86_64) => true,  // x86_64-unknown-linux-gnu
+            (OS::Linux, Arch::Aarch64) => true, // aarch64-unknown-linux-gnu
+            (OS::MacOS, Arch::Aarch64) => true, // aarch64-apple-darwin
 
             // Unsupported platforms
-            (OS::MacOS, Arch::X86_64) => false,       // x86_64-apple-darwin
-            (OS::Windows, _) => false,                 // All Windows platforms
+            (OS::MacOS, Arch::X86_64) => false, // x86_64-apple-darwin
+            (OS::Windows, _) => false,          // All Windows platforms
         };
 
         if !supported {
