@@ -576,6 +576,84 @@ impl XlaOp {
         self.wrap(op)
     }
 
+    /// General convolution operation with dilation support.
+    ///
+    /// Performs a general N-dimensional convolution with support for:
+    /// - Custom window strides
+    /// - Padding
+    /// - Input (LHS) dilation
+    /// - Kernel (RHS) dilation
+    /// - Feature groups (for grouped convolutions)
+    /// - Batch groups (for depthwise convolutions)
+    ///
+    /// The dimension numbers specify the layout of the input, kernel, and output tensors.
+    /// For a typical 2D convolution with NCHW format:
+    /// - input_batch_dimension = 0 (N)
+    /// - input_feature_dimension = 1 (C)
+    /// - input_spatial_dimensions = [2, 3] (H, W)
+    /// - kernel_input_feature_dimension = 1 (input channels)
+    /// - kernel_output_feature_dimension = 0 (output channels)
+    /// - kernel_spatial_dimensions = [2, 3] (kernel H, W)
+    ///
+    /// See the [XLA documentation](https://www.tensorflow.org/xla/operation_semantics#conv_convolution).
+    pub fn conv_general_dilated(
+        &self,
+        rhs: &XlaOp,
+        window_strides: &[i64],
+        padding: &[(i64, i64)],
+        lhs_dilation: &[i64],
+        rhs_dilation: &[i64],
+        input_batch_dimension: i64,
+        input_feature_dimension: i64,
+        input_spatial_dimensions: &[i64],
+        kernel_input_feature_dimension: i64,
+        kernel_output_feature_dimension: i64,
+        kernel_spatial_dimensions: &[i64],
+        feature_group_count: i64,
+        batch_group_count: i64,
+    ) -> Result<Self> {
+        if input_spatial_dimensions.len() != 2 {
+            return Err(Error::UnexpectedNumberOfDims {
+                expected: 2,
+                got: input_spatial_dimensions.len(),
+                dims: input_spatial_dimensions.to_vec(),
+            });
+        }
+        if kernel_spatial_dimensions.len() != 2 {
+            return Err(Error::UnexpectedNumberOfDims {
+                expected: 2,
+                got: kernel_spatial_dimensions.len(),
+                dims: kernel_spatial_dimensions.to_vec(),
+            });
+        }
+        let padding_flat: Vec<i64> = padding.iter().flat_map(|(a, b)| vec![*a, *b]).collect();
+        let op = unsafe {
+            c_lib::op_conv_general_dilated(
+                self.op,
+                rhs.op,
+                window_strides.as_ptr(),
+                window_strides.len(),
+                padding_flat.as_ptr(),
+                padding.len(),
+                lhs_dilation.as_ptr(),
+                lhs_dilation.len(),
+                rhs_dilation.as_ptr(),
+                rhs_dilation.len(),
+                input_batch_dimension,
+                input_feature_dimension,
+                input_spatial_dimensions[0],
+                input_spatial_dimensions[1],
+                kernel_input_feature_dimension,
+                kernel_output_feature_dimension,
+                kernel_spatial_dimensions[0],
+                kernel_spatial_dimensions[1],
+                feature_group_count,
+                batch_group_count,
+            )
+        };
+        self.wrap(op)
+    }
+
     fn maybe_keep_dims(&self, res: XlaOp, dims_to_keep: &[i64], keep_dims: bool) -> Result<XlaOp> {
         if keep_dims && !dims_to_keep.is_empty() {
             let shape = self.array_shape()?;

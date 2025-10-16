@@ -774,6 +774,48 @@ xla_op op_select_and_scatter(const xla_op operand, const xla_computation select,
   END_PROTECT_OP(operand)
 }
 
+xla_op op_conv_general_dilated(const xla_op lhs, const xla_op rhs,
+                                const int64_t *window_strides, size_t nwindow_strides,
+                                const int64_t *padding, size_t npadding,
+                                const int64_t *lhs_dilation, size_t nlhs_dilation,
+                                const int64_t *rhs_dilation, size_t nrhs_dilation,
+                                int64_t input_batch_dimension, int64_t input_feature_dimension,
+                                int64_t input_spatial_dimensions_0, int64_t input_spatial_dimensions_1,
+                                int64_t kernel_input_feature_dimension, int64_t kernel_output_feature_dimension,
+                                int64_t kernel_spatial_dimensions_0, int64_t kernel_spatial_dimensions_1,
+                                int64_t feature_group_count, int64_t batch_group_count) {
+  BEGIN_PROTECT_OP
+  ConvolutionDimensionNumbers dimension_numbers;
+  dimension_numbers.set_input_batch_dimension(input_batch_dimension);
+  dimension_numbers.set_input_feature_dimension(input_feature_dimension);
+  dimension_numbers.add_input_spatial_dimensions(input_spatial_dimensions_0);
+  dimension_numbers.add_input_spatial_dimensions(input_spatial_dimensions_1);
+  dimension_numbers.set_kernel_input_feature_dimension(kernel_input_feature_dimension);
+  dimension_numbers.set_kernel_output_feature_dimension(kernel_output_feature_dimension);
+  dimension_numbers.add_kernel_spatial_dimensions(kernel_spatial_dimensions_0);
+  dimension_numbers.add_kernel_spatial_dimensions(kernel_spatial_dimensions_1);
+  dimension_numbers.set_output_batch_dimension(input_batch_dimension);
+  dimension_numbers.set_output_feature_dimension(input_feature_dimension);
+  dimension_numbers.add_output_spatial_dimensions(input_spatial_dimensions_0);
+  dimension_numbers.add_output_spatial_dimensions(input_spatial_dimensions_1);
+
+  std::vector<std::pair<int64_t, int64_t>> padding_pairs;
+  for (size_t i = 0; i < npadding; ++i) {
+    padding_pairs.push_back({padding[i * 2], padding[i * 2 + 1]});
+  }
+
+  return new XlaOp(ConvGeneralDilated(
+      *lhs, *rhs,
+      absl::Span<const int64_t>(window_strides, nwindow_strides),
+      padding_pairs,
+      absl::Span<const int64_t>(lhs_dilation, nlhs_dilation),
+      absl::Span<const int64_t>(rhs_dilation, nrhs_dilation),
+      dimension_numbers,
+      feature_group_count,
+      batch_group_count));
+  END_PROTECT_OP(lhs)
+}
+
 xla_op op_convert_element_type(const xla_op arg, int pr_type) {
   BEGIN_PROTECT_OP
   return new XlaOp(ConvertElementType(*arg, (PrimitiveType)pr_type));
