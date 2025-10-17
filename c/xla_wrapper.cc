@@ -780,24 +780,27 @@ xla_op op_conv_general_dilated(const xla_op lhs, const xla_op rhs,
                                 const int64_t *lhs_dilation, size_t nlhs_dilation,
                                 const int64_t *rhs_dilation, size_t nrhs_dilation,
                                 int64_t input_batch_dimension, int64_t input_feature_dimension,
-                                int64_t input_spatial_dimensions_0, int64_t input_spatial_dimensions_1,
+                                const int64_t *input_spatial_dimensions, size_t ninput_spatial_dimensions,
                                 int64_t kernel_input_feature_dimension, int64_t kernel_output_feature_dimension,
-                                int64_t kernel_spatial_dimensions_0, int64_t kernel_spatial_dimensions_1,
+                                const int64_t *kernel_spatial_dimensions, size_t nkernel_spatial_dimensions,
                                 int64_t feature_group_count, int64_t batch_group_count) {
   BEGIN_PROTECT_OP
   ConvolutionDimensionNumbers dimension_numbers;
   dimension_numbers.set_input_batch_dimension(input_batch_dimension);
   dimension_numbers.set_input_feature_dimension(input_feature_dimension);
-  dimension_numbers.add_input_spatial_dimensions(input_spatial_dimensions_0);
-  dimension_numbers.add_input_spatial_dimensions(input_spatial_dimensions_1);
+  for (size_t i = 0; i < ninput_spatial_dimensions; ++i) {
+    dimension_numbers.add_input_spatial_dimensions(input_spatial_dimensions[i]);
+  }
   dimension_numbers.set_kernel_input_feature_dimension(kernel_input_feature_dimension);
   dimension_numbers.set_kernel_output_feature_dimension(kernel_output_feature_dimension);
-  dimension_numbers.add_kernel_spatial_dimensions(kernel_spatial_dimensions_0);
-  dimension_numbers.add_kernel_spatial_dimensions(kernel_spatial_dimensions_1);
+  for (size_t i = 0; i < nkernel_spatial_dimensions; ++i) {
+    dimension_numbers.add_kernel_spatial_dimensions(kernel_spatial_dimensions[i]);
+  }
   dimension_numbers.set_output_batch_dimension(input_batch_dimension);
   dimension_numbers.set_output_feature_dimension(input_feature_dimension);
-  dimension_numbers.add_output_spatial_dimensions(input_spatial_dimensions_0);
-  dimension_numbers.add_output_spatial_dimensions(input_spatial_dimensions_1);
+  for (size_t i = 0; i < ninput_spatial_dimensions; ++i) {
+    dimension_numbers.add_output_spatial_dimensions(input_spatial_dimensions[i]);
+  }
 
   std::vector<std::pair<int64_t, int64_t>> padding_pairs;
   for (size_t i = 0; i < npadding; ++i) {

@@ -612,18 +612,14 @@ impl XlaOp {
         feature_group_count: i64,
         batch_group_count: i64,
     ) -> Result<Self> {
-        if input_spatial_dimensions.len() != 2 {
-            return Err(Error::UnexpectedNumberOfDims {
-                expected: 2,
-                got: input_spatial_dimensions.len(),
-                dims: input_spatial_dimensions.to_vec(),
-            });
-        }
-        if kernel_spatial_dimensions.len() != 2 {
-            return Err(Error::UnexpectedNumberOfDims {
-                expected: 2,
-                got: kernel_spatial_dimensions.len(),
-                dims: kernel_spatial_dimensions.to_vec(),
+        if input_spatial_dimensions.len() != kernel_spatial_dimensions.len() {
+            return Err(Error::XlaError {
+                msg: format!(
+                    "input_spatial_dimensions length ({}) must match kernel_spatial_dimensions length ({})",
+                    input_spatial_dimensions.len(),
+                    kernel_spatial_dimensions.len()
+                ),
+                backtrace: String::new(),
             });
         }
         let padding_flat: Vec<i64> = padding.iter().flat_map(|(a, b)| vec![*a, *b]).collect();
@@ -641,12 +637,12 @@ impl XlaOp {
                 rhs_dilation.len(),
                 input_batch_dimension,
                 input_feature_dimension,
-                input_spatial_dimensions[0],
-                input_spatial_dimensions[1],
+                input_spatial_dimensions.as_ptr(),
+                input_spatial_dimensions.len(),
                 kernel_input_feature_dimension,
                 kernel_output_feature_dimension,
-                kernel_spatial_dimensions[0],
-                kernel_spatial_dimensions[1],
+                kernel_spatial_dimensions.as_ptr(),
+                kernel_spatial_dimensions.len(),
                 feature_group_count,
                 batch_group_count,
             )
