@@ -360,6 +360,38 @@ impl XlaOp {
         self.maybe_keep_dims(op, &dims, keep_dims)
     }
 
+    /// Applies a reduction computation to all elements in each window of the operand.
+    ///
+    /// # Arguments
+    /// * `init_value` - The initial value for the reduction
+    /// * `comp` - The computation to apply for reduction
+    /// * `window_dimensions` - The dimensions of the window
+    /// * `window_strides` - The stride of the window
+    /// * `padding` - The padding to apply (pairs of (low, high) for each dimension)
+    pub fn reduce_window(
+        &self,
+        init_value: Self,
+        comp: XlaComputation,
+        window_dimensions: &[i64],
+        window_strides: &[i64],
+        padding: &[(i64, i64)],
+    ) -> Result<Self> {
+        let padding_flat: Vec<i64> = padding.iter().flat_map(|(a, b)| vec![*a, *b]).collect();
+        let op = unsafe {
+            c_lib::op_reduce_window(
+                self.op,
+                init_value.op,
+                comp.0,
+                window_dimensions.as_ptr(),
+                window_dimensions.len(),
+                window_strides.as_ptr(),
+                window_strides.len(),
+                padding_flat.as_ptr(),
+            )
+        };
+        self.wrap(op)
+    }
+
     /// Sequentially execute `body` until `cond` fails.
     ///
     /// - `init` argument has a type `T`.

@@ -846,6 +846,29 @@ xla_op op_reduce(const xla_op arg, const xla_op init,
   END_PROTECT_OP(arg)
 }
 
+xla_op op_reduce_window(const xla_op operand, const xla_op init_value,
+                        const xla_computation computation,
+                        const int64_t *window_dimensions, size_t nwindow_dimensions,
+                        const int64_t *window_strides, size_t nwindow_strides,
+                        const int64_t *padding) {
+  BEGIN_PROTECT_OP
+  std::vector<std::pair<int64_t, int64_t>> padding_pairs;
+  for (size_t i = 0; i < nwindow_dimensions; ++i) {
+    padding_pairs.push_back({padding[i * 2], padding[i * 2 + 1]});
+  }
+  // Create base_dilations and window_dilations vectors (all 1s for no dilation)
+  std::vector<int64_t> base_dilations(nwindow_dimensions, 1);
+  std::vector<int64_t> window_dilations(nwindow_dimensions, 1);
+  return new XlaOp(ReduceWindowWithGeneralPadding(
+      *operand, *init_value, *computation,
+      absl::Span<const int64_t>(window_dimensions, nwindow_dimensions),
+      absl::Span<const int64_t>(window_strides, nwindow_strides),
+      absl::Span<const int64_t>(base_dilations),
+      absl::Span<const int64_t>(window_dilations),
+      padding_pairs));
+  END_PROTECT_OP(operand)
+}
+
 xla_op op_internal_error(const xla_builder b, const char *error) {
   BEGIN_PROTECT_OP
   return new XlaOp(b->ReportError(tsl::errors::Internal(error)));
