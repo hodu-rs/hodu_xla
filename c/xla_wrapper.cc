@@ -638,6 +638,12 @@ xla_op op_transpose(const xla_op arg, size_t dsize, const int64_t *ds) {
   END_PROTECT_OP(arg)
 }
 
+xla_op op_rev(const xla_op arg, size_t dsize, const int64_t *ds) {
+  BEGIN_PROTECT_OP
+  return new XlaOp(Rev(*arg, absl::Span<const int64_t>(ds, dsize)));
+  END_PROTECT_OP(arg)
+}
+
 xla_op op_clamp(const xla_op arg1, const xla_op arg2, const xla_op arg3) {
   BEGIN_PROTECT_OP
   return new XlaOp(Clamp(*arg1, *arg2, *arg3));

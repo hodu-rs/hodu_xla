@@ -192,6 +192,12 @@ impl XlaOp {
         self.wrap(op)
     }
 
+    /// Reverse (flip) the tensor along the specified dimensions.
+    pub fn rev(&self, dimensions: &[i64]) -> Result<Self> {
+        let op = unsafe { c_lib::op_rev(self.op, dimensions.len(), dimensions.as_ptr()) };
+        self.wrap(op)
+    }
+
     /// Permute two dimensions, this is a specialized version of `transpose`.
     pub fn swap_dims(&self, index1: i64, index2: i64) -> Result<Self> {
         let index1 = self.normalize_index(index1)?;
