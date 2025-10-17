@@ -1,6 +1,6 @@
 [package]
 name = "hodu_xla"
-version = "0.4.3"
+version = "0.4.4"
 authors = [
     "laurent <laurent.mazare@gmail.com>",
     "Han Damin <miniex@daminstudio.net>",
