@@ -1,7 +1,10 @@
 [package]
 name = "hodu_xla"
 version = "0.4.3"
-authors = ["laurent <laurent.mazare@gmail.com>", "Han Damin <miniex@daminstudio.net>"]
+authors = [
+    "laurent <laurent.mazare@gmail.com>",
+    "Han Damin <miniex@daminstudio.net>",
+]
 edition = "2021"
 description = "Bindings for the XLA C++ library."
 repository = "https://github.com/hodu-rs/hodu_xla"
@@ -15,12 +18,12 @@ default = []
 
 [dependencies]
 libc = "0.2"
-half = { version = "2.6.0", default-features = false, features = [
+half = { version = "2.7.1", default-features = false, features = [
     "num-traits",
 ] }
 num-traits = "0.2.19"
 num-derive = "0.4.2"
-zip = "5.1.1"
+zip = "6.0.0"
 
 [build-dependencies]
 bindgen = "0.72.1"
