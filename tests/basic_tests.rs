@@ -67,6 +67,86 @@ fn mean_op() -> Result<()> {
 }
 
 #[test]
+fn reduce_or_op() -> Result<()> {
+    let client = hodu_xla::PjRtClient::cpu()?;
+
+    // Test with PRED type (boolean)
+    let builder = hodu_xla::XlaBuilder::new("test");
+    let x = builder.parameter(0, hodu_xla::ElementType::Pred, &[4], "x")?;
+    let or_result = x.reduce_or(&[0], false)?.build()?.compile(&client)?;
+
+    // Test case 1: All false -> should be false
+    let input = hodu_xla::Literal::vec1(&[false, false, false, false]);
+    let result = or_result.execute::<hodu_xla::Literal>(&[input])?;
+    let result = result[0][0].to_literal_sync()?;
+    assert_eq!(result.to_vec::<bool>()?, [false]);
+
+    // Test case 2: At least one true -> should be true
+    let input = hodu_xla::Literal::vec1(&[false, true, false, false]);
+    let result = or_result.execute::<hodu_xla::Literal>(&[input])?;
+    let result = result[0][0].to_literal_sync()?;
+    assert_eq!(result.to_vec::<bool>()?, [true]);
+
+    // Test case 3: All true -> should be true
+    let input = hodu_xla::Literal::vec1(&[true, true, true, true]);
+    let result = or_result.execute::<hodu_xla::Literal>(&[input])?;
+    let result = result[0][0].to_literal_sync()?;
+    assert_eq!(result.to_vec::<bool>()?, [true]);
+
+    // Test with keep_dims = true
+    let builder = hodu_xla::XlaBuilder::new("test");
+    let x = builder.parameter(0, hodu_xla::ElementType::Pred, &[4], "x")?;
+    let or_result = x.reduce_or(&[0], true)?.build()?.compile(&client)?;
+    let input = hodu_xla::Literal::vec1(&[false, true, false, false]);
+    let result = or_result.execute::<hodu_xla::Literal>(&[input])?;
+    let result = result[0][0].to_literal_sync()?;
+    assert_eq!(result.to_vec::<bool>()?, [true]);
+    assert_eq!(result.array_shape()?.dims(), [1]);
+
+    Ok(())
+}
+
+#[test]
+fn reduce_and_op() -> Result<()> {
+    let client = hodu_xla::PjRtClient::cpu()?;
+
+    // Test with PRED type (boolean)
+    let builder = hodu_xla::XlaBuilder::new("test");
+    let x = builder.parameter(0, hodu_xla::ElementType::Pred, &[4], "x")?;
+    let and_result = x.reduce_and(&[0], false)?.build()?.compile(&client)?;
+
+    // Test case 1: All true -> should be true
+    let input = hodu_xla::Literal::vec1(&[true, true, true, true]);
+    let result = and_result.execute::<hodu_xla::Literal>(&[input])?;
+    let result = result[0][0].to_literal_sync()?;
+    assert_eq!(result.to_vec::<bool>()?, [true]);
+
+    // Test case 2: At least one false -> should be false
+    let input = hodu_xla::Literal::vec1(&[true, false, true, true]);
+    let result = and_result.execute::<hodu_xla::Literal>(&[input])?;
+    let result = result[0][0].to_literal_sync()?;
+    assert_eq!(result.to_vec::<bool>()?, [false]);
+
+    // Test case 3: All false -> should be false
+    let input = hodu_xla::Literal::vec1(&[false, false, false, false]);
+    let result = and_result.execute::<hodu_xla::Literal>(&[input])?;
+    let result = result[0][0].to_literal_sync()?;
+    assert_eq!(result.to_vec::<bool>()?, [false]);
+
+    // Test with keep_dims = true
+    let builder = hodu_xla::XlaBuilder::new("test");
+    let x = builder.parameter(0, hodu_xla::ElementType::Pred, &[4], "x")?;
+    let and_result = x.reduce_and(&[0], true)?.build()?.compile(&client)?;
+    let input = hodu_xla::Literal::vec1(&[true, true, true, true]);
+    let result = and_result.execute::<hodu_xla::Literal>(&[input])?;
+    let result = result[0][0].to_literal_sync()?;
+    assert_eq!(result.to_vec::<bool>()?, [true]);
+    assert_eq!(result.array_shape()?.dims(), [1]);
+
+    Ok(())
+}
+
+#[test]
 fn tuple_op() -> Result<()> {
     let client = hodu_xla::PjRtClient::cpu()?;
     let builder = hodu_xla::XlaBuilder::new("test");

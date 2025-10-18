@@ -260,6 +260,7 @@ void status_free(status);
 char *status_error_message(status);
 
 #define FOR_EACH_NATIVE_TYPE(_)                                                \
+  _(bool, PRED)                                                                \
   _(int8_t, S8)                                                                \
   _(int16_t, S16)                                                              \
   _(int32_t, S32)                                                              \

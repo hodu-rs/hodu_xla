@@ -748,6 +748,28 @@ impl XlaOp {
         self.reduce(init_value, sum, dims, keep_dims)
     }
 
+    /// A node that computes the logical OR across the specified dimensions.
+    pub fn reduce_or(&self, dims: &[i64], keep_dims: bool) -> Result<Self> {
+        let builder = XlaBuilder::new("Or");
+        let ty = self.primitive_type()?.element_type()?;
+        let x = builder.parameter(0, ty, &[], "x")?;
+        let y = builder.parameter(1, ty, &[], "y")?;
+        let or_comp = x.or(&y)?.build()?;
+        let init_value = self.builder.zero(ty)?;
+        self.reduce(init_value, or_comp, dims, keep_dims)
+    }
+
+    /// A node that computes the logical AND across the specified dimensions.
+    pub fn reduce_and(&self, dims: &[i64], keep_dims: bool) -> Result<Self> {
+        let builder = XlaBuilder::new("And");
+        let ty = self.primitive_type()?.element_type()?;
+        let x = builder.parameter(0, ty, &[], "x")?;
+        let y = builder.parameter(1, ty, &[], "y")?;
+        let and_comp = x.and(&y)?.build()?;
+        let init_value = self.builder.one(ty)?;
+        self.reduce(init_value, and_comp, dims, keep_dims)
+    }
+
     pub fn softmax(&self, dim: i64) -> Result<Self> {
         let max = self.reduce_max(&[dim], true)?;
         let unnormalized = (self - max)?.exp()?;

@@ -182,6 +182,16 @@ macro_rules! native_type {
 }
 
 native_type!(
+    bool,
+    constant_r0_bool,
+    constant_r1_bool,
+    constant_r1c_bool,
+    create_r0_bool,
+    create_r1_bool,
+    literal_get_first_element_bool
+);
+
+native_type!(
     i32,
     constant_r0_int32_t,
     constant_r1_int32_t,
@@ -349,6 +359,12 @@ impl ArrayElement for bf16 {
     const TY: ElementType = ElementType::U16;
     const ELEMENT_SIZE_IN_BYTES: usize = 2;
     const ZERO: Self = bf16::ZERO;
+}
+
+impl ArrayElement for bool {
+    const TY: ElementType = ElementType::Pred;
+    const ELEMENT_SIZE_IN_BYTES: usize = 1;
+    const ZERO: Self = false;
 }
 
 element_type!(u8, U8, 1);
